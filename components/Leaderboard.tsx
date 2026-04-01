@@ -4,11 +4,6 @@ import { useEffect, useState } from 'react';
 import { getLeaderboard, LeaderboardEntry } from '../lib/gameEngine';
 import { GameMode } from '../store/useGameStore';
 
-const WIN_STYLE: React.CSSProperties = {
-  fontFamily: "'Tahoma', 'MS Sans Serif', Arial, sans-serif",
-  fontSize: 11,
-};
-
 export default function Leaderboard({ compact = false }: { compact?: boolean }) {
   const [entries, setEntries] = useState<LeaderboardEntry[]>([]);
   const [loading, setLoading] = useState(true);
@@ -31,116 +26,123 @@ export default function Leaderboard({ compact = false }: { compact?: boolean }) 
   };
 
   const modes: { id: GameMode; label: string }[] = [
-    { id: 'states',   label: 'States'   },
-    { id: 'uts',      label: 'UTs'      },
+    { id: 'states',   label: 'States' },
+    { id: 'uts',      label: 'UTs' },
     { id: 'capitals', label: 'Capitals' },
   ];
 
   return (
-    <div style={{ ...WIN_STYLE, display: 'flex', flexDirection: 'column', gap: 8 }}>
-
-      {/* Tab strip */}
-      <div style={{ display: 'flex', gap: 2, borderBottom: '2px solid #808080' }}>
+    <div className="bg-card border border-border rounded-2xl overflow-hidden">
+      {/* Tab Navigation */}
+      <div className="flex border-b border-border">
         {modes.map(({ id, label }) => {
           const active = activeMode === id;
           return (
             <button
               key={id}
               onClick={() => setActiveMode(id)}
-              style={{
-                ...WIN_STYLE,
-                padding: '3px 12px',
-                cursor: 'pointer',
-                fontWeight: active ? 700 : 400,
-                background: active ? '#d4d0c8' : '#b8b4ac',
-                border: '2px solid',
-                borderColor: active
-                  ? '#ffffff #808080 #d4d0c8 #ffffff'
-                  : '#ffffff #808080 #808080 #ffffff',
-                borderBottom: active ? '2px solid #d4d0c8' : '2px solid #808080',
-                boxShadow: active ? '0 -1px 0 #000 inset' : 'none',
-                marginBottom: active ? -2 : 0,
-                zIndex: active ? 1 : 0,
-                position: 'relative',
-              }}
+              className={`
+                flex-1 px-4 py-3 text-sm font-medium transition-colors relative
+                ${active 
+                  ? 'text-foreground' 
+                  : 'text-muted-foreground hover:text-foreground'
+                }
+              `}
             >
               {label}
+              {active && (
+                <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-accent" />
+              )}
             </button>
           );
         })}
       </div>
 
-      {/* List view container */}
-      <div style={{
-        background: '#ffffff',
-        border: '2px solid',
-        borderColor: '#808080 #ffffff #ffffff #808080',
-        boxShadow: 'inset 1px 1px 0 #000',
-        minHeight: 200,
-        maxHeight: compact ? 320 : 420,
-        overflowY: 'auto',
-      }}
-        className="win-scroll"
-      >
-        {/* Column headers */}
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: '40px 1fr auto auto',
-          background: '#d4d0c8',
-          borderBottom: '1px solid #808080',
-          padding: '2px 4px',
-        }}>
-          {['#', 'Name', 'Date', 'Time'].map(h => (
-            <div key={h} style={{
-              ...WIN_STYLE,
-              fontWeight: 700,
-              padding: '2px 6px',
-              borderRight: h !== 'Time' ? '1px solid #808080' : 'none',
-            }}>
-              {h}
-            </div>
-          ))}
-        </div>
+      {/* Table Header */}
+      <div className="grid grid-cols-[48px_1fr_100px_80px] gap-2 px-4 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wider border-b border-border bg-muted/50">
+        <span>#</span>
+        <span>Player</span>
+        <span>Date</span>
+        <span className="text-right">Time</span>
+      </div>
 
+      {/* Table Body */}
+      <div className={`${compact ? 'max-h-[300px]' : 'max-h-[400px]'} overflow-y-auto`}>
         {loading ? (
-          <div style={{ padding: '12px 8px', ...WIN_STYLE, display: 'flex', flexDirection: 'column', gap: 4 }}>
+          <div className="p-4 space-y-3">
             {[1, 2, 3, 4, 5].map(i => (
-              <div key={i} style={{ height: 20, background: '#e4e0d8', animation: 'pulse 1.5s infinite' }} />
+              <div key={i} className="h-12 rounded-lg animate-shimmer" />
             ))}
           </div>
         ) : entries.length === 0 ? (
-          <div style={{ padding: 16, textAlign: 'center', ...WIN_STYLE, color: '#444' }}>
-            No times recorded yet. Be the first!
+          <div className="py-16 text-center">
+            <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mx-auto mb-4">
+              <TrophyIcon className="w-8 h-8 text-muted-foreground" />
+            </div>
+            <p className="text-muted-foreground text-sm">No times recorded yet</p>
+            <p className="text-muted-foreground/60 text-xs mt-1">Be the first to complete the challenge!</p>
           </div>
         ) : (
           entries.map((entry, idx) => (
             <div
               key={entry.id || idx}
-              style={{
-                display: 'grid',
-                gridTemplateColumns: '40px 1fr auto auto',
-                padding: '3px 4px',
-                background: idx % 2 === 0 ? '#ffffff' : '#f0ede8',
-                borderBottom: '1px solid #e0dcd5',
-                cursor: 'default',
-              }}
+              className={`
+                grid grid-cols-[48px_1fr_100px_80px] gap-2 px-4 py-3 items-center
+                ${idx % 2 === 0 ? 'bg-transparent' : 'bg-muted/30'}
+                hover:bg-accent/5 transition-colors
+              `}
             >
-              <div style={{ ...WIN_STYLE, padding: '2px 6px', color: idx === 0 ? '#b8960c' : idx === 1 ? '#555' : idx === 2 ? '#a0522d' : '#000', fontWeight: idx < 3 ? 700 : 400 }}>
-                {idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : idx + 1}
-              </div>
-              <div style={{ ...WIN_STYLE, padding: '2px 6px', fontWeight: idx < 3 ? 700 : 400 }}>{entry.name}</div>
-              <div style={{ ...WIN_STYLE, padding: '2px 10px', color: '#555' }}>{new Date(entry.date).toLocaleDateString()}</div>
-              <div style={{ ...WIN_STYLE, padding: '2px 8px', fontFamily: "'Courier New', monospace", fontWeight: 700, color: '#0a246a' }}>
+              {/* Rank */}
+              <span className="flex items-center justify-center">
+                {idx === 0 ? (
+                  <span className="w-7 h-7 rounded-full bg-yellow-500/20 flex items-center justify-center text-yellow-500 text-sm">1</span>
+                ) : idx === 1 ? (
+                  <span className="w-7 h-7 rounded-full bg-gray-400/20 flex items-center justify-center text-gray-400 text-sm">2</span>
+                ) : idx === 2 ? (
+                  <span className="w-7 h-7 rounded-full bg-orange-500/20 flex items-center justify-center text-orange-500 text-sm">3</span>
+                ) : (
+                  <span className="text-muted-foreground text-sm">{idx + 1}</span>
+                )}
+              </span>
+
+              {/* Name */}
+              <span className={`font-medium truncate ${idx < 3 ? 'text-foreground' : 'text-muted-foreground'}`}>
+                {entry.name}
+              </span>
+
+              {/* Date */}
+              <span className="text-muted-foreground text-sm">
+                {new Date(entry.date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })}
+              </span>
+
+              {/* Time */}
+              <span className={`
+                text-right font-mono font-semibold
+                ${idx < 3 ? 'text-accent' : 'text-foreground'}
+              `}>
                 {formatTime(entry.time)}
-              </div>
+              </span>
             </div>
           ))
         )}
       </div>
 
-      <div style={{ ...WIN_STYLE, fontSize: 10, color: '#555', textAlign: 'right' }}>
-        {entries.length} record{entries.length !== 1 ? 's' : ''} found
-      </div>
+      {/* Footer */}
+      {entries.length > 0 && (
+        <div className="px-4 py-3 border-t border-border bg-muted/30">
+          <p className="text-muted-foreground text-xs">
+            {entries.length} player{entries.length !== 1 ? 's' : ''} on the leaderboard
+          </p>
+        </div>
+      )}
     </div>
+  );
+}
+
+function TrophyIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 18.75h-9m9 0a3 3 0 013 3h-15a3 3 0 013-3m9 0v-3.375c0-.621-.503-1.125-1.125-1.125h-.871M7.5 18.75v-3.375c0-.621.504-1.125 1.125-1.125h.872m5.007 0H9.497m5.007 0a7.454 7.454 0 01-.982-3.172M9.497 14.25a7.454 7.454 0 00.981-3.172M5.25 4.236c-.982.143-1.954.317-2.916.52A6.003 6.003 0 007.73 9.728M5.25 4.236V4.5c0 2.108.966 3.99 2.48 5.228M5.25 4.236V2.721C7.456 2.41 9.71 2.25 12 2.25c2.291 0 4.545.16 6.75.47v1.516M7.73 9.728a6.726 6.726 0 002.748 1.35m8.272-6.842V4.5c0 2.108-.966 3.99-2.48 5.228m2.48-5.492a46.32 46.32 0 012.916.52 6.003 6.003 0 01-5.395 4.972m0 0a6.726 6.726 0 01-2.749 1.35m0 0a6.772 6.772 0 01-2.927 0" />
+    </svg>
   );
 }
