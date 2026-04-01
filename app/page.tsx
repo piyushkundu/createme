@@ -45,11 +45,8 @@ export default function Home() {
       <header className="sticky top-0 z-50 border-b border-border glass">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
-            <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-lg bg-accent flex items-center justify-center">
-                <span className="text-white font-bold text-sm">IN</span>
-              </div>
-              <span className="text-foreground font-semibold text-lg tracking-tight">createme.in</span>
+            <div className="flex items-center gap-2">
+              <CreateMeLogo />
             </div>
             <nav className="hidden sm:flex items-center gap-6">
               <a href="#" className="text-muted-foreground hover:text-foreground text-sm transition-colors">Game</a>
@@ -176,17 +173,11 @@ export default function Home() {
       </section>
 
       {/* Footer */}
-      <footer className="border-t border-border py-8">
+      <footer className="border-t border-border py-6">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-            <div className="flex items-center gap-2 text-muted-foreground text-sm">
-              <span>Built with</span>
-              <HeartIcon className="w-4 h-4 text-red-500" />
-              <span>for India</span>
-            </div>
-            <div className="text-muted-foreground text-sm">
-              createme.in
-            </div>
+          <div className="flex items-center justify-center">
+            <span className="text-muted-foreground text-sm">Powered by</span>
+            <span className="ml-1.5 font-semibold text-foreground">Knobly</span>
           </div>
         </div>
       </footer>
@@ -194,6 +185,7 @@ export default function Home() {
   );
 }
 
+/* Logo */
 /* Icons */
 function MapIcon() {
   return (
@@ -243,10 +235,13 @@ function InfoIcon({ className }: { className?: string }) {
   );
 }
 
-function HeartIcon({ className }: { className?: string }) {
+function CreateMeLogo() {
   return (
-    <svg className={className} fill="currentColor" viewBox="0 0 24 24">
-      <path d="M11.645 20.91l-.007-.003-.022-.012a15.247 15.247 0 01-.383-.218 25.18 25.18 0 01-4.244-3.17C4.688 15.36 2.25 12.174 2.25 8.25 2.25 5.322 4.714 3 7.688 3A5.5 5.5 0 0112 5.052 5.5 5.5 0 0116.313 3c2.973 0 5.437 2.322 5.437 5.25 0 3.925-2.438 7.111-4.739 9.256a25.175 25.175 0 01-4.244 3.17 15.247 15.247 0 01-.383.219l-.022.012-.007.004-.003.001a.752.752 0 01-.704 0l-.003-.001z" />
-    </svg>
+    <div className="flex items-center gap-2">
+      <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-accent to-blue-700 flex items-center justify-center shadow-sm">
+        <span className="text-white font-bold text-base">C</span>
+      </div>
+      <span className="text-foreground font-bold text-xl tracking-tight">CreateMe</span>
+    </div>
   );
 }

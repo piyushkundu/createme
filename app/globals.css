@@ -4,22 +4,22 @@
   --font-sans: 'Inter', 'Inter Fallback', system-ui, -apple-system, sans-serif;
   --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
 
-  /* Premium Dark Theme */
-  --color-background: #0a0a0a;
-  --color-foreground: #fafafa;
-  --color-muted: #171717;
-  --color-muted-foreground: #a1a1aa;
-  --color-card: #141414;
-  --color-card-foreground: #fafafa;
-  --color-border: #262626;
-  --color-primary: #ffffff;
-  --color-primary-foreground: #0a0a0a;
-  --color-secondary: #262626;
-  --color-secondary-foreground: #fafafa;
-  --color-accent: #3b82f6;
+  /* Premium Light Theme */
+  --color-background: #ffffff;
+  --color-foreground: #0f172a;
+  --color-muted: #f8fafc;
+  --color-muted-foreground: #64748b;
+  --color-card: #ffffff;
+  --color-card-foreground: #0f172a;
+  --color-border: #e2e8f0;
+  --color-primary: #0f172a;
+  --color-primary-foreground: #ffffff;
+  --color-secondary: #f1f5f9;
+  --color-secondary-foreground: #0f172a;
+  --color-accent: #2563eb;
   --color-accent-foreground: #ffffff;
   --color-destructive: #ef4444;
-  --color-ring: #3b82f6;
+  --color-ring: #2563eb;
 
   --radius: 0.75rem;
 }
@@ -88,12 +88,12 @@ html {
 
 /* Glow effect */
 .glow {
-  box-shadow: 0 0 20px rgba(59, 130, 246, 0.3);
+  box-shadow: 0 0 20px rgba(37, 99, 235, 0.2);
 }
 
-/* Glass effect */
+/* Glass effect for light mode */
 .glass {
-  background: rgba(20, 20, 20, 0.8);
+  background: rgba(255, 255, 255, 0.9);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
 }
