@@ -7,7 +7,10 @@ import Leaderboard from '../components/Leaderboard';
 
 function CreateMeLogo() {
   return (
-    <span className="font-[var(--font-cursive)] text-2xl text-accent">
+    <span 
+      className="font-[var(--font-cursive)] text-3xl bg-gradient-to-r from-violet-600 via-pink-500 to-orange-400 bg-clip-text text-transparent drop-shadow-sm"
+      style={{ letterSpacing: '0.02em' }}
+    >
       createme.in
     </span>
   );
