@@ -1,9 +1,8 @@
 import type { Metadata, Viewport } from "next";
-import { inter } from "./fonts";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "CreateMe India Map Challenge",
+  title: "createme.in — India Map Challenge",
   description: "Test your knowledge of Indian states with this interactive map quiz.",
 };
 
@@ -22,7 +21,10 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className={`${inter.className} min-h-[100dvh] bg-[#020617] text-slate-100 flex flex-col antialiased selection:bg-indigo-500/30 selection:text-indigo-100`}>
+      <body
+        style={{ fontFamily: "'Tahoma', 'MS Sans Serif', Arial, sans-serif" }}
+        className="min-h-[100dvh] flex flex-col"
+      >
         <main className="flex-1 w-full mx-auto relative flex flex-col">
           {children}
         </main>

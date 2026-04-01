@@ -1,16 +1,154 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { motion } from 'framer-motion';
 import { useGameStore, GameMode } from '../store/useGameStore';
-import { pacifico } from './fonts';
 import Leaderboard from '../components/Leaderboard';
+
+/* ─── Tiny Win2k UI primitives ─────────────────────────────── */
+
+function TitleBar({ title, icon }: { title: string; icon?: string }) {
+  return (
+    <div className="win-titlebar flex items-center justify-between px-2 py-[3px] select-none">
+      <div className="flex items-center gap-1.5">
+        {icon && <span style={{ fontSize: 14 }}>{icon}</span>}
+        <span style={{ color: '#fff', fontWeight: 700, fontSize: 11, letterSpacing: '0.01em' }}>
+          {title}
+        </span>
+      </div>
+      <div className="flex items-center gap-[2px]">
+        {['_', '□', '✕'].map((c, i) => (
+          <button
+            key={i}
+            aria-label={['Minimise', 'Maximise', 'Close'][i]}
+            style={{
+              width: 16,
+              height: 14,
+              fontSize: 9,
+              background: '#d4d0c8',
+              border: '2px solid',
+              borderColor: '#ffffff #808080 #808080 #ffffff',
+              boxShadow: '1px 1px 0 #000',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              cursor: 'default',
+              color: '#000',
+              lineHeight: 1,
+            }}
+          >
+            {c}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function Win2kButton({
+  children,
+  onClick,
+  disabled,
+  fullWidth,
+  variant = 'default',
+}: {
+  children: React.ReactNode;
+  onClick?: () => void;
+  disabled?: boolean;
+  fullWidth?: boolean;
+  variant?: 'default' | 'primary';
+}) {
+  const [pressed, setPressed] = useState(false);
+
+  const base: React.CSSProperties = {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'flex-start',
+    gap: 6,
+    background: '#d4d0c8',
+    border: '2px solid',
+    borderColor: pressed ? '#808080 #ffffff #ffffff #808080' : '#ffffff #808080 #808080 #ffffff',
+    boxShadow: pressed ? 'inset 1px 1px 0 #000' : '1px 1px 0 #000',
+    cursor: disabled ? 'default' : 'pointer',
+    fontFamily: "'Tahoma', 'MS Sans Serif', Arial, sans-serif",
+    fontSize: 11,
+    fontWeight: 700,
+    color: disabled ? '#808080' : '#000',
+    padding: '6px 10px',
+    userSelect: 'none',
+    width: fullWidth ? '100%' : undefined,
+    minHeight: 88,
+    textAlign: 'left',
+  };
+
+  return (
+    <button
+      style={base}
+      onClick={disabled ? undefined : onClick}
+      onMouseDown={() => !disabled && setPressed(true)}
+      onMouseUp={() => setPressed(false)}
+      onMouseLeave={() => setPressed(false)}
+    >
+      {children}
+    </button>
+  );
+}
+
+function Win2kInput({
+  value,
+  onChange,
+  onKeyDown,
+  placeholder,
+  id,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  onKeyDown?: React.KeyboardEventHandler;
+  placeholder?: string;
+  id?: string;
+}) {
+  return (
+    <input
+      id={id}
+      type="text"
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      onKeyDown={onKeyDown}
+      placeholder={placeholder}
+      maxLength={20}
+      autoComplete="off"
+      style={{
+        width: '100%',
+        background: '#ffffff',
+        border: '2px solid',
+        borderColor: '#808080 #ffffff #ffffff #808080',
+        boxShadow: 'inset 1px 1px 0 #000',
+        fontFamily: "'Tahoma', 'MS Sans Serif', Arial, sans-serif",
+        fontSize: 11,
+        padding: '4px 6px',
+        outline: 'none',
+        color: '#000',
+      }}
+    />
+  );
+}
+
+/* ─── Main Page ──────────────────────────────────────────────── */
 
 export default function Home() {
   const [name, setName] = useState('');
+  const [clockTime, setClockTime] = useState('');
   const router = useRouter();
   const startGame = useGameStore(state => state.startGame);
+
+  // Update clock only on the client to avoid SSR/hydration mismatch
+  useEffect(() => {
+    const tick = () =>
+      setClockTime(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
+    tick();
+    const id = setInterval(tick, 1000);
+    return () => clearInterval(id);
+  }, []);
 
   const handleStart = (mode: GameMode) => {
     if (name.trim()) {
@@ -19,122 +157,176 @@ export default function Home() {
     }
   };
 
+  const modes: { mode: GameMode; icon: string; label: string; sub: string; wide?: boolean }[] = [
+    { mode: 'states',   icon: '🗺️', label: 'Find The States',   sub: 'Locate all 28 states on the map' },
+    { mode: 'uts',      icon: '🏝️', label: 'Union Territories', sub: 'Find all 8 union territories' },
+    { mode: 'capitals', icon: '🏛️', label: 'Find The Capitals', sub: 'Identify states by their capital city', wide: true },
+  ];
+
   return (
-    <div className="min-h-[100dvh] flex flex-col items-center justify-start sm:justify-center overflow-y-auto px-4 py-6 sm:py-6 w-full relative">
-      <div className="absolute top-1/2 left-1/4 -translate-x-1/2 -translate-y-1/2 w-[60vw] h-[60vh] bg-indigo-400/20 rounded-full blur-[140px] pointer-events-none" />
-      <div className="absolute bottom-0 right-1/4 translate-x-1/4 w-[50vw] h-[50vh] bg-emerald-500/10 rounded-full blur-[120px] pointer-events-none" />
-      
-      <div className="w-full max-w-6xl z-10 flex flex-col lg:grid lg:grid-cols-12 gap-6 lg:gap-8 items-stretch lg:items-center relative pb-10">
-        
-        {/* LEFT COLUMN: GAME SELECTION */}
-        <motion.div 
-          initial={{ opacity: 0, x: -30 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ duration: 0.6, ease: "easeOut" }}
-          className="lg:col-span-7 bg-white/95 backdrop-blur-2xl p-5 sm:p-8 lg:p-10 rounded-[2rem] sm:rounded-[2.5rem] shadow-xl border border-slate-200 relative flex-shrink-0"
+    <div
+      style={{ minHeight: '100dvh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '16px', gap: 12 }}
+    >
+      {/* ── Desktop "taskbar" hint ─── */}
+      <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, height: 28, background: '#d4d0c8', borderTop: '2px solid #ffffff', display: 'flex', alignItems: 'center', paddingLeft: 4, gap: 4, zIndex: 50 }}>
+        <button
+          style={{
+            display: 'flex', alignItems: 'center', gap: 4,
+            background: '#d4d0c8', border: '2px solid',
+            borderColor: '#ffffff #808080 #808080 #ffffff',
+            boxShadow: '1px 1px 0 #000',
+            fontFamily: "'Tahoma', Arial, sans-serif",
+            fontWeight: 900, fontSize: 11,
+            padding: '2px 8px', cursor: 'pointer', userSelect: 'none',
+          }}
         >
-          <div className="text-center md:text-left mb-5 sm:mb-6 relative z-10">
-            <motion.h1 
-              initial={{ scale: 0.95 }}
-              animate={{ scale: 1 }}
-              className={`${pacifico.className} text-4xl sm:text-5xl lg:text-6xl tracking-wide mb-2 leading-tight drop-shadow-xl bg-clip-text text-transparent bg-gradient-to-r from-emerald-500 via-teal-400 to-cyan-500 inline-block`}
-            >
-              createme.in
-            </motion.h1>
-            <p className="text-slate-500 text-sm sm:text-base font-bold tracking-wide pl-1">The Premium India Map Challenge</p>
+          <span style={{ fontSize: 14 }}>🪟</span> Start
+        </button>
+        <div style={{ width: 1, height: '70%', background: '#808080', marginLeft: 2 }} />
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: 4,
+          background: '#d4d0c8', border: '2px solid',
+          borderColor: '#808080 #ffffff #ffffff #808080',
+          boxShadow: 'inset 1px 1px 0 #000',
+          fontFamily: "'Tahoma', Arial, sans-serif",
+          fontSize: 10, padding: '2px 8px',
+        }}>
+          🗺️ createme.in — India Map Challenge
+        </div>
+        <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8, paddingRight: 6 }}>
+          <span style={{ fontSize: 10, color: '#444' }}>🔊</span>
+          <div style={{
+            background: '#d4d0c8', border: '2px solid',
+            borderColor: '#808080 #ffffff #ffffff #808080',
+            boxShadow: 'inset 1px 1px 0 #000',
+            fontSize: 9, padding: '1px 5px', fontFamily: "'Tahoma', Arial, sans-serif",
+          }}>
+            {clockTime}
           </div>
-
-          <div className="space-y-5 sm:space-y-6">
-            <div className="relative z-10 group">
-              <label htmlFor="playerName" className="block text-xs font-bold text-slate-700 mb-1.5 ml-2 transition-colors group-focus-within:text-indigo-600">
-                Explorer Name
-              </label>
-              <input
-                id="playerName"
-                type="text"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                onKeyDown={(e) => { if (e.key === 'Enter' && name.trim()) handleStart('states'); }}
-                placeholder="Enter your name to begin..."
-                className="w-full px-4 sm:px-5 py-3 sm:py-3.5 rounded-2xl bg-slate-50/80 backdrop-blur-md border border-slate-300 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/20 transition-all outline-none text-slate-900 font-bold placeholder:text-slate-400 text-base shadow-inner"
-                required
-                maxLength={20}
-                autoComplete="off"
-              />
-            </div>
-
-            <div className="relative z-10 grid grid-cols-2 gap-3">
-              <p className="text-xs font-bold text-slate-700 col-span-full mb-0.5 ml-2">Choose Your Challenge</p>
-              
-              <motion.button
-                whileHover={{ scale: 1.03, y: -2 }}
-                whileTap={{ scale: 0.97 }}
-                onClick={() => handleStart('states')}
-                disabled={!name.trim()}
-                className="w-full p-3.5 sm:p-4 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white shadow-[0_8px_20px_rgba(16,185,129,0.3)] hover:shadow-[0_15px_30px_rgba(16,185,129,0.4)] transition-all disabled:opacity-50 disabled:cursor-not-allowed text-left flex flex-col justify-between min-h-[90px] sm:min-h-[110px]"
-              >
-                <div className="text-xl sm:text-2xl mb-1.5 sm:mb-2 drop-shadow-md bg-white/20 w-9 h-9 sm:w-10 sm:h-10 flex items-center justify-center rounded-lg">🗺️</div>
-                <div>
-                  <h3 className="font-black text-base sm:text-lg tracking-tight leading-tight">Find The States</h3>
-                  <p className="text-emerald-100 text-[10px] sm:text-xs font-semibold opacity-95">Locate all 28 states</p>
-                </div>
-              </motion.button>
-
-              <motion.button
-                whileHover={{ scale: 1.03, y: -2 }}
-                whileTap={{ scale: 0.97 }}
-                onClick={() => handleStart('uts')}
-                disabled={!name.trim()}
-                className="w-full p-3.5 sm:p-4 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white shadow-[0_8px_20px_rgba(59,130,246,0.3)] hover:shadow-[0_15px_30px_rgba(59,130,246,0.4)] transition-all disabled:opacity-50 disabled:cursor-not-allowed text-left flex flex-col justify-between min-h-[90px] sm:min-h-[110px]"
-              >
-                <div className="text-xl sm:text-2xl mb-1.5 sm:mb-2 drop-shadow-md bg-white/20 w-9 h-9 sm:w-10 sm:h-10 flex items-center justify-center rounded-lg">🏝️</div>
-                <div>
-                  <h3 className="font-black text-base sm:text-lg tracking-tight leading-tight">Union Territories</h3>
-                  <p className="text-indigo-100 text-[10px] sm:text-xs font-semibold opacity-95">Find 8 regions</p>
-                </div>
-              </motion.button>
-
-              <motion.button
-                whileHover={{ scale: 1.02, y: -2 }}
-                whileTap={{ scale: 0.98 }}
-                onClick={() => handleStart('capitals')}
-                disabled={!name.trim()}
-                className="w-full p-3.5 sm:p-4 rounded-xl col-span-2 bg-gradient-to-br from-purple-500 to-pink-600 hover:from-purple-600 hover:to-pink-700 text-white shadow-[0_8px_20px_rgba(168,85,247,0.3)] hover:shadow-[0_15px_30px_rgba(168,85,247,0.4)] transition-all disabled:opacity-50 disabled:cursor-not-allowed text-left flex items-center gap-3 sm:gap-4"
-              >
-                <div className="text-2xl sm:text-3xl drop-shadow-md bg-white/20 w-10 h-10 sm:w-12 sm:h-12 shrink-0 flex items-center justify-center rounded-xl">🏛️</div>
-                <div>
-                  <h3 className="font-black text-base sm:text-xl tracking-tight leading-tight">Find The Capitals</h3>
-                  <p className="text-purple-100 text-xs sm:text-sm font-semibold opacity-95">Identify states by their capital city</p>
-                </div>
-              </motion.button>
-            </div>
-          </div>
-        </motion.div>
-
-        {/* RIGHT COLUMN: LEADERBOARD */}
-        <motion.div
-           initial={{ opacity: 0, y: 30 }}
-           animate={{ opacity: 1, y: 0 }}
-           transition={{ duration: 0.6, ease: "easeOut", delay: 0.15 }}
-           className="lg:col-span-5 w-full flex-shrink-0 h-[450px] sm:h-[500px] lg:h-[600px]"
-        >
-          <Leaderboard compact={true} />
-        </motion.div>
+        </div>
       </div>
 
-      {/* Powered by Link */}
-      <div className="mt-5 z-20">
-        <a 
-          href="https://knoblyweb.in" 
-          target="_blank" 
-          rel="noopener noreferrer"
-          className="text-slate-400 hover:text-white transition-colors text-xs sm:text-sm font-semibold flex items-center gap-1 drop-shadow-md"
-          title="Visit Knobly Web"
-        >
-          Powered by <span className="text-slate-200 font-bold">Knobly</span>
-        </a>
+      {/* ── Main "window" grid ── */}
+      <div style={{ width: '100%', maxWidth: 900, display: 'grid', gridTemplateColumns: '1fr', gap: 10 }}>
+
+        {/* ── Window: Game Setup ── */}
+        <div style={{ background: '#d4d0c8', border: '2px solid', borderColor: '#ffffff #808080 #808080 #ffffff', boxShadow: '2px 2px 0 #000' }}>
+          <TitleBar title="createme.in — India Map Challenge" icon="🗺️" />
+
+          {/* menu bar */}
+          <div style={{ display: 'flex', gap: 0, borderBottom: '1px solid #808080', background: '#d4d0c8', padding: '2px 4px' }}>
+            {['File', 'Game', 'Help'].map(m => (
+              <button key={m} style={{ background: 'none', border: 'none', fontFamily: "'Tahoma', Arial, sans-serif", fontSize: 11, padding: '1px 6px', cursor: 'default' }}>
+                {m}
+              </button>
+            ))}
+          </div>
+
+          {/* toolbar */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '4px 6px', borderBottom: '1px solid #808080', background: '#d4d0c8' }}>
+            {[{ icon: '▶', label: 'Play' }, { icon: '⏹', label: 'Stop' }, { icon: '❓', label: 'Help' }].map(t => (
+              <button key={t.label} title={t.label} style={{ background: '#d4d0c8', border: '2px solid', borderColor: '#ffffff #808080 #808080 #ffffff', boxShadow: '1px 1px 0 #000', width: 24, height: 22, cursor: 'pointer', fontFamily: 'Arial', fontSize: 10, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                {t.icon}
+              </button>
+            ))}
+            <div style={{ width: 1, height: 20, background: '#808080', margin: '0 2px' }} />
+            <span style={{ fontSize: 10, color: '#444' }}>Welcome, Explorer!</span>
+          </div>
+
+          {/* client area */}
+          <div style={{ padding: 12, display: 'flex', flexDirection: 'column', gap: 12 }}>
+
+            {/* Explorer Name group box */}
+            <fieldset style={{ border: '1px solid #808080', padding: '8px 10px 10px', margin: 0, background: '#d4d0c8' }}>
+              <legend style={{ fontFamily: "'Tahoma', Arial, sans-serif", fontSize: 11, fontWeight: 700, padding: '0 4px' }}>
+                Explorer Profile
+              </legend>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                <label htmlFor="playerName" style={{ fontFamily: "'Tahoma', Arial, sans-serif", fontSize: 11, whiteSpace: 'nowrap' }}>
+                  Player &amp;Name:
+                </label>
+                <div style={{ flex: 1, minWidth: 160 }}>
+                  <Win2kInput
+                    id="playerName"
+                    value={name}
+                    onChange={setName}
+                    onKeyDown={(e) => { if (e.key === 'Enter' && name.trim()) handleStart('states'); }}
+                    placeholder="Enter your name..."
+                  />
+                </div>
+              </div>
+            </fieldset>
+
+            {/* Game Mode group box */}
+            <fieldset style={{ border: '1px solid #808080', padding: '8px 10px 10px', margin: 0, background: '#d4d0c8' }}>
+              <legend style={{ fontFamily: "'Tahoma', Arial, sans-serif", fontSize: 11, fontWeight: 700, padding: '0 4px' }}>
+                Select Game Mode
+              </legend>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
+                {modes.map(({ mode, icon, label, sub, wide }) => (
+                  <Win2kButton
+                    key={mode}
+                    onClick={() => handleStart(mode)}
+                    disabled={!name.trim()}
+                    fullWidth
+                    style={wide ? { gridColumn: '1 / -1' } as React.CSSProperties : undefined}
+                  >
+                    <span style={{ fontSize: 22, lineHeight: 1 }}>{icon}</span>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontWeight: 700, fontSize: 11 }}>{label}</div>
+                      <div style={{ color: '#444444', fontSize: 10, fontWeight: 400 }}>{sub}</div>
+                    </div>
+                  </Win2kButton>
+                ))}
+              </div>
+              {!name.trim() && (
+                <div style={{ marginTop: 6, display: 'flex', alignItems: 'center', gap: 4 }}>
+                  <span style={{ fontSize: 14 }}>⚠️</span>
+                  <span style={{ fontFamily: "'Tahoma', Arial, sans-serif", fontSize: 10, color: '#444' }}>
+                    Please enter your name above to enable game modes.
+                  </span>
+                </div>
+              )}
+            </fieldset>
+
+          </div>
+
+          {/* status bar */}
+          <div style={{ display: 'flex', gap: 4, padding: '3px 6px', borderTop: '1px solid #808080', background: '#d4d0c8' }}>
+            <div style={{ flex: 1, border: '2px solid', borderColor: '#808080 #ffffff #ffffff #808080', padding: '1px 4px', fontSize: 10, fontFamily: "'Tahoma', Arial, sans-serif" }}>
+              Ready
+            </div>
+            <div style={{ border: '2px solid', borderColor: '#808080 #ffffff #ffffff #808080', padding: '1px 8px', fontSize: 10, fontFamily: "'Tahoma', Arial, sans-serif" }}>
+              3 Game Modes
+            </div>
+            <div style={{ border: '2px solid', borderColor: '#808080 #ffffff #ffffff #808080', padding: '1px 8px', fontSize: 10, fontFamily: "'Tahoma', Arial, sans-serif" }}>
+              🌐 createme.in
+            </div>
+          </div>
+        </div>
+
+        {/* ── Window: Leaderboard ── */}
+        <div style={{ background: '#d4d0c8', border: '2px solid', borderColor: '#ffffff #808080 #808080 #ffffff', boxShadow: '2px 2px 0 #000' }}>
+          <TitleBar title="Top Explorers — Leaderboard" icon="🏆" />
+          <div style={{ padding: 12 }}>
+            <Leaderboard compact={false} />
+          </div>
+          <div style={{ display: 'flex', gap: 4, padding: '3px 6px', borderTop: '1px solid #808080', background: '#d4d0c8' }}>
+            <div style={{ flex: 1, border: '2px solid', borderColor: '#808080 #ffffff #ffffff #808080', padding: '1px 4px', fontSize: 10, fontFamily: "'Tahoma', Arial, sans-serif" }}>
+              Fastest completion times
+            </div>
+          </div>
+        </div>
+
+        {/* ── Powered-by strip ── */}
+        <div style={{ textAlign: 'center', fontSize: 10, fontFamily: "'Tahoma', Arial, sans-serif", color: '#ffffff', paddingBottom: 36 }}>
+          Powered by{' '}
+          <a href="https://knoblyweb.in" target="_blank" rel="noopener noreferrer" style={{ color: '#ffff80', fontWeight: 700 }}>
+            Knobly Web
+          </a>
+          {' '}— Best viewed in Internet Explorer 6.0 at 800×600 resolution
+        </div>
       </div>
     </div>
   );
 }
-
