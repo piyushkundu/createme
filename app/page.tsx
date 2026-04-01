@@ -5,6 +5,14 @@ import { useRouter } from 'next/navigation';
 import { useGameStore, GameMode } from '../store/useGameStore';
 import Leaderboard from '../components/Leaderboard';
 
+function CreateMeLogo() {
+  return (
+    <span className="font-[var(--font-cursive)] text-2xl text-accent">
+      createme.in
+    </span>
+  );
+}
+
 export default function Home() {
   const [name, setName] = useState('');
   const [hoveredMode, setHoveredMode] = useState<GameMode | null>(null);
@@ -232,16 +240,5 @@ function InfoIcon({ className }: { className?: string }) {
     <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
       <path strokeLinecap="round" strokeLinejoin="round" d="M11.25 11.25l.041-.02a.75.75 0 011.063.852l-.708 2.836a.75.75 0 001.063.853l.041-.021M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9-3.75h.008v.008H12V8.25z" />
     </svg>
-  );
-}
-
-function CreateMeLogo() {
-  return (
-    <div className="flex items-center gap-2">
-      <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-accent to-blue-700 flex items-center justify-center shadow-sm">
-        <span className="text-white font-bold text-base">C</span>
-      </div>
-      <span className="text-foreground font-bold text-xl tracking-tight">CreateMe</span>
-    </div>
   );
 }
