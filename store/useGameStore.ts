@@ -23,6 +23,7 @@ interface GameState {
   highlightedState: string | null;
   startTime: number | null;
   isGuest: boolean;
+  totalWrongAttempts: number;
   
   startGame: (name: string, mode: GameMode, isGuest?: boolean) => void;
   answerState: (id: string) => 'correct' | 'wrong' | 'ignored';
@@ -43,6 +44,7 @@ export const useGameStore = create<GameState>((set, get) => ({
   highlightedState: null,
   startTime: null,
   isGuest: false,
+  totalWrongAttempts: 0,
 
   startGame: (name: string, mode: GameMode, isGuest: boolean = false) => {
     let filteredStates = statesData;
@@ -67,6 +69,7 @@ export const useGameStore = create<GameState>((set, get) => ({
       highlightedState: null,
       startTime: Date.now(),
       isGuest,
+      totalWrongAttempts: 0,
     });
   },
 
@@ -80,7 +83,10 @@ export const useGameStore = create<GameState>((set, get) => ({
        return 'correct';
     } else {
        const newAttempts = wrongAttempts + 1;
-       set({ wrongAttempts: newAttempts });
+       set((state) => ({ 
+         wrongAttempts: newAttempts,
+         totalWrongAttempts: state.totalWrongAttempts + 1
+       }));
        return 'wrong';
     }
   },

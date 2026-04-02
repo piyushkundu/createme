@@ -46,17 +46,17 @@ export default function Leaderboard({ compact = false }: { compact?: boolean }) 
         ))}
       </div>
 
-      <div className={`p-4 ${compact ? 'sm:p-6 overflow-hidden flex-1 flex flex-col' : 'sm:p-8'}`}>
+      <div className={`p-4 ${compact ? 'sm:p-6 overflow-hidden flex-1 flex flex-col min-h-0' : 'sm:p-8'}`}>
         {loading ? (
-          <div className="space-y-4 relative z-10">
+          <div className="space-y-4 relative z-10 overflow-hidden flex-1 min-h-0">
             {[1, 2, 3, 4, 5].map((i) => (
-              <div key={i} className="h-16 w-full bg-slate-100 rounded-xl animate-pulse border border-slate-200"></div>
+              <div key={i} className="h-16 w-full bg-slate-100 rounded-xl animate-pulse border border-slate-200 shrink-0"></div>
             ))}
           </div>
         ) : entries.length === 0 ? (
-          <div className="text-center py-12 text-slate-500 font-bold relative z-10">No times recorded yet. Be the first!</div>
+          <div className="flex-1 flex flex-col items-center justify-center text-slate-500 font-bold relative z-10 min-h-0">No times recorded yet. Be the first!</div>
         ) : (
-          <div className={`${compact ? 'overflow-y-auto h-full flex-1' : 'max-h-[50vh] overflow-y-auto'} pr-2 custom-scrollbar relative z-10`}>
+          <div className={`${compact ? 'overflow-y-auto h-full flex-1 min-h-0' : 'max-h-[50vh] overflow-y-auto'} pr-2 custom-scrollbar relative z-10`}>
             <AnimatePresence>
               {entries.map((entry, idx) => (
                 <motion.div
