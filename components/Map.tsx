@@ -34,17 +34,24 @@ export default function Map() {
   }, []);
 
   useEffect(() => {
-    // Load India states
-    fetch('/indian_states.geojson')
-      .then(res => res.json())
-      .then(data => setGeoData(data))
-      .catch(err => console.error('Could not load India map data', err));
+    // FAST TRACK: Load both India limits and world borders via a single high-speed API
+    // which operates seamlessly out of Redis Cache 
+    const fetchMaps = async () => {
+      try {
+        const response = await fetch('/api/map');
+        if (!response.ok) throw new Error("Unified Redis Route Failed. Server Error");
+        const payload = await response.json();
+        setGeoData(payload.indiaMap);
+        setNeighbourData(payload.worldMap);
+      } catch (err) {
+        console.warn("API map fetch failed, defaulting to local static pull.", err);
+        // Robust Fallback exactly like old version
+        fetch('/indian_states.geojson').then(r => r.json()).then(setGeoData);
+        fetch('/neighbours.geojson').then(r => r.json()).then(setNeighbourData);
+      }
+    };
 
-    // Load world GeoJSON for surrounding countries (Asia)
-    fetch('/neighbours.geojson')
-      .then(res => res.json())
-      .then(data => setNeighbourData(data))
-      .catch(err => console.error('Could not load world data', err));
+    fetchMaps();
   }, []);
 
 

@@ -27,10 +27,10 @@ export default function Leaderboard({ compact = false }: { compact?: boolean }) 
   };
 
   return (
-    <div className={`w-full mx-auto bg-white/95 backdrop-blur-2xl rounded-3xl overflow-hidden border border-slate-200 relative ${compact ? 'max-w-none shadow-lg h-full max-h-[600px] flex flex-col' : 'max-w-2xl shadow-[0_10px_40px_rgba(0,0,0,0.08)]'}`}>
+    <div className={`w-full mx-auto bg-white/95 backdrop-blur-2xl rounded-[2rem] overflow-hidden border border-slate-200 relative ${compact ? 'max-w-none shadow-lg h-full flex flex-col' : 'max-w-2xl shadow-[0_10px_40px_rgba(0,0,0,0.08)]'}`}>
       {!compact && <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-300/20 rounded-full blur-[80px] pointer-events-none" />}
       <div className={`${compact ? 'p-6 pb-4' : 'p-8 pb-6'} text-center bg-gradient-to-b from-slate-50 to-white relative z-10 shrink-0`}>
-        <h2 className={`${compact ? 'text-2xl' : 'text-3xl'} font-black mb-1 bg-clip-text text-transparent bg-gradient-to-r from-indigo-600 to-cyan-600`}>Top Explorers</h2>
+        <h2 className="text-3xl font-black mb-1 bg-clip-text text-transparent bg-gradient-to-r from-indigo-600 to-cyan-600">Top Explorers</h2>
         <p className="text-sm font-medium text-slate-500">Fastest times on the India Map Challenge</p>
       </div>
 
@@ -66,21 +66,21 @@ export default function Leaderboard({ compact = false }: { compact?: boolean }) 
                   transition={{ delay: idx * 0.05 }}
                   className="flex items-center justify-between p-4 mb-3 rounded-2xl bg-white border border-slate-200 shadow-sm hover:shadow-md hover:border-indigo-300 transition-all group"
                 >
-                  <div className="flex items-center gap-4">
-                    <div className={`w-10 h-10 flex items-center justify-center rounded-full font-black text-lg ${
-                      idx === 0 ? 'bg-amber-100 text-amber-600 shadow-[0_0_15px_rgba(251,191,36,0.2)]' :
-                      idx === 1 ? 'bg-slate-200 text-slate-600 shadow-[0_0_15px_rgba(148,163,184,0.2)]' :
-                      idx === 2 ? 'bg-orange-100 text-orange-600 shadow-[0_0_15px_rgba(249,115,22,0.2)]' :
+                  <div className="flex items-center gap-4 sm:gap-5">
+                    <div className={`w-12 h-12 flex items-center justify-center rounded-full font-black text-xl ${
+                      idx === 0 ? 'bg-amber-100 text-amber-600 shadow-[0_0_20px_rgba(251,191,36,0.3)]' :
+                      idx === 1 ? 'bg-slate-200 text-slate-600 shadow-[0_0_15px_rgba(148,163,184,0.3)]' :
+                      idx === 2 ? 'bg-orange-100 text-orange-600 shadow-[0_0_15px_rgba(249,115,22,0.3)]' :
                       'bg-slate-100 text-slate-500'
                     }`}>
                       {idx + 1}
                     </div>
                     <div>
-                      <h3 className="font-bold text-slate-800 text-lg group-hover:text-indigo-600 transition-colors">{entry.name}</h3>
-                      <p className="text-xs text-slate-500 font-medium">{new Date(entry.date).toLocaleDateString()}</p>
+                      <h3 className="font-black text-slate-800 text-xl group-hover:text-indigo-600 transition-colors tracking-tight">{entry.name}</h3>
+                      <p className="text-xs sm:text-sm text-slate-500 font-bold">{new Date(entry.date).toLocaleDateString()}</p>
                     </div>
                   </div>
-                  <div className="bg-slate-50 px-4 py-2 rounded-xl text-indigo-700 font-mono font-bold border border-slate-200 shadow-inner">
+                  <div className="bg-slate-50 px-5 py-2.5 rounded-xl text-indigo-700 font-mono font-bold text-lg border border-slate-200 shadow-inner">
                     {formatTime(entry.time)}
                   </div>
                 </motion.div>

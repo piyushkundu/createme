@@ -22,8 +22,9 @@ interface GameState {
   isBlinking: boolean;
   highlightedState: string | null;
   startTime: number | null;
+  isGuest: boolean;
   
-  startGame: (name: string, mode: GameMode) => void;
+  startGame: (name: string, mode: GameMode, isGuest?: boolean) => void;
   answerState: (id: string) => 'correct' | 'wrong' | 'ignored';
   nextQuestion: () => void;
   updateTime: () => void;
@@ -41,8 +42,9 @@ export const useGameStore = create<GameState>((set, get) => ({
   isBlinking: false,
   highlightedState: null,
   startTime: null,
+  isGuest: false,
 
-  startGame: (name: string, mode: GameMode) => {
+  startGame: (name: string, mode: GameMode, isGuest: boolean = false) => {
     let filteredStates = statesData;
     if (mode === 'states') {
       filteredStates = statesData.filter(s => s.type === 'state');
@@ -64,6 +66,7 @@ export const useGameStore = create<GameState>((set, get) => ({
       isBlinking: false,
       highlightedState: null,
       startTime: Date.now(),
+      isGuest,
     });
   },
 
@@ -83,12 +86,14 @@ export const useGameStore = create<GameState>((set, get) => ({
   },
 
   nextQuestion: () => {
-    const { states, currentIndex, playerName, elapsedTime } = get();
+    const { states, currentIndex, playerName, elapsedTime, isGuest } = get();
     const nextIndex = currentIndex + 1;
     
     if (nextIndex >= states.length) {
       // Game over
-      saveResult(playerName, elapsedTime);
+      if (!isGuest) {
+        saveResult(playerName, elapsedTime);
+      }
       set({ phase: 'finished', isBlinking: false, highlightedState: null });
     } else {
       set({ 
