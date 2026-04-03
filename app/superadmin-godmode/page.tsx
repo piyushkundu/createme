@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { getAllUsers, deleteUser } from '../../lib/gameEngine';
 import { useRouter } from 'next/navigation';
+import { verifySuperAdmin } from '../actions/verifyAdmin';
 
 export default function SuperAdminPage() {
   const [users, setUsers] = useState<any[]>([]);
@@ -13,9 +14,10 @@ export default function SuperAdminPage() {
 
   // Simple client-side protection just to prevent accidental deletions
   // Not highly secure but meets the "hidden link" criteria + a lock.
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (password === 'createme2026') {
+    const isValid = await verifySuperAdmin(password);
+    if (isValid) {
       setAuthenticated(true);
     } else {
       alert('Incorrect Password');

@@ -96,13 +96,13 @@ export const useGameStore = create<GameState>((set, get) => ({
   },
 
   nextQuestion: () => {
-    const { states, currentIndex, playerName, elapsedTime, isGuest } = get();
+    const { states, currentIndex, playerName, elapsedTime, isGuest, gameMode } = get();
     const nextIndex = currentIndex + 1;
     
     if (nextIndex >= states.length) {
       // Game over
       if (!isGuest) {
-        saveResult(playerName, elapsedTime);
+        saveResult(playerName, elapsedTime, gameMode);
       }
       set({ phase: 'finished', isBlinking: false, highlightedState: null });
     } else {
