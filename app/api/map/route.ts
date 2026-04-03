@@ -8,10 +8,15 @@ export async function GET() {
     // 1. FAST PATH: Check Redis Cache for the merged datasets
     if (redis) {
       try {
-        const cachedPayload = await redis.get('map:geojson:payload');
+        const cachedPayload = await redis.get('map:geojson:payload:v2');
         if (cachedPayload) {
           // Send raw buffered JS payload directly bypassing disk entirely
-          return NextResponse.json(JSON.parse(cachedPayload));
+          return new NextResponse(cachedPayload, {
+            headers: {
+              'Content-Type': 'application/json',
+              'Cache-Control': 'public, max-age=31536000, stale-while-revalidate=86400',
+            }
+          });
         }
       } catch (redisError) {
         console.warn("Redis is unreachable or misconfigured, falling back to disk", redisError);
@@ -32,13 +37,17 @@ export async function GET() {
     // 3. CACHE SAVING: Store in Redis for 24 Hours if connection exists
     if (redis) {
       try {
-        await redis.setex('map:geojson:payload', 86400, JSON.stringify(payload));
+        await redis.setex('map:geojson:payload:v2', 86400, JSON.stringify(payload));
       } catch (redisSetErr) {
         console.warn("Failed to set cache block in Redis", redisSetErr);
       }
     }
 
-    return NextResponse.json(payload);
+    return NextResponse.json(payload, {
+      headers: {
+        'Cache-Control': 'public, max-age=31536000, stale-while-revalidate=86400',
+      }
+    });
 
   } catch (error) {
     console.error("Map Data Aggregation Error:", error);

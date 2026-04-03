@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useGameStore, GameMode } from '../store/useGameStore';
@@ -37,6 +37,11 @@ export default function Home() {
 
   const router = useRouter();
   const startGame = useGameStore(state => state.startGame);
+
+  // Pre-fetch map data silently so game page loads instantly
+  useEffect(() => {
+    fetch('/api/map').catch(() => {});
+  }, []);
 
   // Modal Login Logic
   const handleLoginSubmit = async () => {

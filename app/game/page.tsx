@@ -3,7 +3,19 @@
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useGameStore } from '../../store/useGameStore';
-import Map from '../../components/Map';
+import dynamic from 'next/dynamic';
+
+const Map = dynamic(() => import('../../components/Map'), { 
+  ssr: false, 
+  loading: () => (
+    <div className="absolute inset-0 flex items-center justify-center">
+      <div className="flex flex-col items-center gap-3">
+         <div className="w-10 h-10 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin"></div>
+         <p className="text-emerald-700 font-bold text-sm tracking-widest uppercase animate-pulse">Loading Map Engine...</p>
+      </div>
+    </div>
+  ) 
+});
 import GameUI from '../../components/GameUI';
 import { motion, AnimatePresence } from 'framer-motion';
 

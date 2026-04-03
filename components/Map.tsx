@@ -1,41 +1,80 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import * as d3 from 'd3';
+import L from 'leaflet';
+import 'leaflet/dist/leaflet.css';
 import { gsap } from 'gsap';
 import { useGameStore } from '../store/useGameStore';
 import { playSound } from '../lib/sound';
 
+const INDIA_BOUNDS: L.LatLngBoundsExpression = [
+  [6.5, 68],
+  [35.5, 97]
+];
+
 export default function Map() {
-  const svgRef = useRef<SVGSVGElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const mapRef = useRef<L.Map | null>(null);
   const { answerState, states, currentIndex, wrongAttempts, phase, setBlinking, isBlinking, highlightedState, nextQuestion } = useGameStore();
+  
   const [geoData, setGeoData] = useState<any>(null);
   const [neighbourData, setNeighbourData] = useState<any>(null);
-  const [containerSize, setContainerSize] = useState<{ width: number; height: number } | null>(null);
 
-  const zoomRef = useRef<any>(null);
+  // References for imperative layer access (like animation lookup)
+  const stateLayerMap = useRef<Record<string, L.Path>>({});
+  const utLayerMap = useRef<Record<string, L.CircleMarker[]>>({});
 
   const getColor = (_name: string) => '#d4dde8';
 
-  // ── ResizeObserver — re-measure when container size changes ──
-  useEffect(() => {
-    if (!containerRef.current) return;
-    const el = containerRef.current;
-    const measure = () => {
-      const w = el.clientWidth;
-      const h = el.clientHeight;
-      if (w > 0 && h > 0) setContainerSize({ width: w, height: h });
-    };
-    measure(); // initial measure
-    const ro = new ResizeObserver(measure);
-    ro.observe(el);
-    return () => ro.disconnect();
-  }, []);
+  // Specific pixel offsets for Northeast states to prevent text overlapping
+  const getStateOffset = (name: string): [number, number] => {
+    if (['Sikkim', 'Mizoram', 'Manipur', 'Nagaland'].includes(name)) return [35, 0];
+    if (['Goa', 'Tripura', 'Meghalaya'].includes(name)) return [-35, 0];
+    if (name === 'Uttar Pradesh') return [20, -15]; // UP needs to move slightly Right and UP
+    if (name === 'Gujarat') return [10, 10];        // Gujarat needs to move slightly Right and DOWN
+    return [0, 0];
+  };
 
+  // Advanced label formatting: wraps long names, adds visual callout lines for tiny states, and rotates specific states like Kerala
+  const formatStateLabel = (name: string) => {
+    let text = name;
+    if (name.includes(' Pradesh')) text = name.replace(' Pradesh', '<br/>Pradesh');
+    if (name === 'Tamil Nadu') text = 'Tamil<br/>Nadu';
+    if (name === 'West Bengal') text = 'West<br/>Bengal';
+
+    const baseFormat = `<div class="text-center leading-[1.05] tracking-tight">${text}</div>`;
+
+    const getRightArrow = () => `
+      <div class="absolute right-full top-1/2 -translate-y-1/2 mr-1 flex items-center pointer-events-none">
+        <svg width="24" height="10" viewBox="0 0 24 10" class="drop-shadow-sm">
+           <line x1="24" y1="5" x2="3" y2="5" stroke="#475569" stroke-width="1.5" />
+           <polygon points="4,2 0,5 4,8" fill="#475569" />
+        </svg>
+      </div>`;
+
+    const getLeftArrow = () => `
+      <div class="absolute left-full top-1/2 -translate-y-1/2 ml-1 flex items-center pointer-events-none">
+        <svg width="24" height="10" viewBox="0 0 24 10" class="drop-shadow-sm">
+           <line x1="0" y1="5" x2="21" y2="5" stroke="#475569" stroke-width="1.5" />
+           <polygon points="20,2 24,5 20,8" fill="#475569" />
+        </svg>
+      </div>`;
+
+    if (['Sikkim', 'Mizoram', 'Manipur', 'Nagaland'].includes(name)) {
+        return `<div class="relative flex items-center">${getRightArrow()}${baseFormat}</div>`;
+    }
+    if (['Goa', 'Tripura', 'Meghalaya'].includes(name)) {
+        return `<div class="relative flex items-center">${getLeftArrow()}${baseFormat}</div>`;
+    }
+    if (name === 'Kerala') {
+        return `<div class="text-center tracking-widest" style="transform: rotate(-65deg); transform-origin: center; margin-top: 15px; margin-left: -5px;">${name}</div>`;
+    }
+
+    return baseFormat;
+  };
+
+  // 1. Fetch JSON Payloads
   useEffect(() => {
-    // FAST TRACK: Load both India limits and world borders via a single high-speed API
-    // which operates seamlessly out of Redis Cache 
     const fetchMaps = async () => {
       try {
         const response = await fetch('/api/map');
@@ -45,234 +84,142 @@ export default function Map() {
         setNeighbourData(payload.worldMap);
       } catch (err) {
         console.warn("API map fetch failed, defaulting to local static pull.", err);
-        // Robust Fallback exactly like old version
         fetch('/indian_states.geojson').then(r => r.json()).then(setGeoData);
         fetch('/neighbours.geojson').then(r => r.json()).then(setNeighbourData);
       }
     };
-
     fetchMaps();
   }, []);
 
-
+  // 2. Initialize Leaflet Map
   useEffect(() => {
-    if (!geoData || !svgRef.current || !containerSize) return;
+    if (!geoData || !containerRef.current) return;
 
-    const width = containerSize.width;
-    const height = containerSize.height;
-
-    const svg = d3.select(svgRef.current)
-      .attr('width', width)
-      .attr('height', height)
-      .attr('viewBox', `0 0 ${width} ${height}`);
-
-    svg.selectAll('*').remove();
-
-    const padding = 40;
-    const projection = d3.geoMercator()
-      .fitExtent([[padding, padding], [width - padding, height - padding]], geoData);
-
-    const pathGenerator = d3.geoPath().projection(projection);
-
-    // ── Defs ──────────────────────────────────────────────
-    const defs = svg.append('defs');
-
-    // Ocean gradient background
-    const oceanGrad = defs.append('linearGradient')
-      .attr('id', 'ocean-grad')
-      .attr('x1', '0%').attr('y1', '0%')
-      .attr('x2', '100%').attr('y2', '100%');
-    oceanGrad.append('stop').attr('offset', '0%').attr('stop-color', '#38bdf8').attr('stop-opacity', 0.25);
-    oceanGrad.append('stop').attr('offset', '100%').attr('stop-color', '#0284c7').attr('stop-opacity', 0.45);
-
-    // State glow filter
-    const glowFilter = defs.append('filter').attr('id', 'state-glow').attr('height', '130%').attr('width', '130%').attr('x', '-15%').attr('y', '-15%');
-    glowFilter.append('feGaussianBlur').attr('stdDeviation', '3').attr('result', 'coloredBlur');
-    const glowMerge = glowFilter.append('feMerge');
-    glowMerge.append('feMergeNode').attr('in', 'coloredBlur');
-    glowMerge.append('feMergeNode').attr('in', 'SourceGraphic');
-
-    // Country shadow filter
-    const countryFilter = defs.append('filter').attr('id', 'country-shadow');
-    countryFilter.append('feDropShadow').attr('dx', '0').attr('dy', '1').attr('stdDeviation', '2').attr('flood-color', 'rgba(0,0,0,0.4)');
-
-    // ── Ocean BG rect ──────────────────────────────────────
-    svg.append('rect')
-      .attr('width', width)
-      .attr('height', height)
-      .attr('fill', 'url(#ocean-grad)')
-      .attr('rx', 0);
-
-    // ── Groups ─────────────────────────────────────────────
-    const gNeighbours = svg.append('g').attr('class', 'neighbours-group');
-    const g = svg.append('g').attr('class', 'states-group');
-    const gSmall = svg.append('g').attr('class', 'small-uts-group');
-
-    // ── Zoom ──────────────────────────────────────────────
-    const zoom = d3.zoom()
-      .scaleExtent([0.3, 15])
-      .translateExtent([[-width * 2, -height * 2], [width * 3, height * 3]])
-      .on('zoom', (event) => {
-        gNeighbours.attr('transform', event.transform);
-        g.attr('transform', event.transform);
-        gSmall.attr('transform', event.transform);
-        
-        // Scale stroke widths inversely with zoom
-        const k = event.transform.k;
-        g.selectAll('.state-path').attr('stroke-width', Math.max(0.3, 0.7 / k));
-        gNeighbours.selectAll('.neighbour-path').attr('stroke-width', Math.max(0.4, 0.8 / k));
+    if (!mapRef.current) {
+      // Create Leaflet instance only once
+      mapRef.current = L.map(containerRef.current, {
+        zoomControl: false,
+        attributionControl: false,
+        zoomSnap: 0.1, // allowing smooth fractional zooming
+        scrollWheelZoom: true,
+        dragging: true,
+        doubleClickZoom: false,
+        zoomAnimation: true,
       });
 
-    svg.call(zoom as any);
-    zoomRef.current = zoom;
-
-    // ── Neighbouring Countries — accurate GeoJSON, white outline style ──────
-    if (neighbourData) {
-      gNeighbours.selectAll('path.neighbour-path')
-        .data(neighbourData.features)
-        .enter()
-        .append('path')
-        .attr('class', 'neighbour-path')
-        .attr('d', pathGenerator as any)
-        .attr('fill', 'rgba(255, 255, 255, 0.15)')   // slightly light white fill
-        .attr('stroke', 'rgba(255, 255, 255, 0.4)')  // light white border
-        .attr('stroke-width', 0.6)
-        .attr('stroke-linejoin', 'round')
-        .style('pointer-events', 'none');
+      // We fit the map precisely to the boundaries of the dataset
+      mapRef.current.fitBounds(INDIA_BOUNDS, { padding: [20, 20] });
     }
 
-
-    // ── India States ──────────────────────────────
-    g.selectAll('path')
-      .data(geoData.features)
-      .enter()
-      .append('path')
-      .attr('d', pathGenerator as any)
-      .attr('data-id', (d: any) => d.properties.ST_NM)
-      .attr('fill', (d: any) => getColor(d.properties.ST_NM))
-      .attr('stroke', '#8098b8')
-      .attr('stroke-width', 0.7)
-      .attr('class', 'state-path cursor-pointer transition-all')
-      .style('filter', 'none')
-      .on('mouseover', function(_event, d: any) {
-        if (phase === 'playing' && !isBlinking && !d3.select(this).classed('answered-correct')) {
-          d3.select(this)
-            .attr('fill', '#c7d2fe')
-            .attr('stroke-width', 1.5)
-            .attr('stroke', '#6366f1')
-            .style('filter', 'url(#state-glow)');
+    const map = mapRef.current;
+    
+    // Clear old layers safely holding state keys
+    map.eachLayer((layer) => {
+        if (!(layer as any)._url) { // don't remove base tiles theoretically
+             map.removeLayer(layer);
         }
-      })
-      .on('mouseout', function(_event, d: any) {
-        if (!d3.select(this).classed('answered-correct') && !d3.select(this).classed('blinker')) {
-          d3.select(this)
-            .attr('fill', getColor(d.properties.ST_NM))
-            .attr('stroke-width', 0.7)
-            .attr('stroke', '#94a3b8')
-            .style('filter', 'none');
+    });
+
+    stateLayerMap.current = {};
+    utLayerMap.current = {};
+
+    // A. Draw Neighbours with rich earthy atlas styling
+    if (neighbourData) {
+      L.geoJSON(neighbourData, {
+        style: {
+          fillColor: '#f5f4eb',  // Premium Seterra solid land color
+          fillOpacity: 1,
+          color: '#d1cbb8',      // Slightly darker border outline
+          opacity: 1,
+          weight: 1.2,
+          interactive: false // Native leaflet prop to completely ignore CSS/hit test logic
         }
-      })
-      .on('click', function(_event, d: any) {
-        if (phase !== 'playing' || isBlinking) return;
+      }).addTo(map);
+    }
 
-        const stateName = d.properties.ST_NM;
-        const result = answerState(stateName);
+    // B. Draw States Layer Engine
+    L.geoJSON(geoData, {
+      style: {
+        fillColor: '#d4dde8',
+        fillOpacity: 1,
+        color: '#8098b8',
+        weight: 1,
+        opacity: 1
+      },
+      onEachFeature: (feature, layer: any) => {
+        const stateName = feature.properties.ST_NM;
+        stateLayerMap.current[stateName] = layer;
 
-        if (result === 'correct') {
-          playSound('correct');
+        // Custom properties storage for state
+        layer.options.stateInfo = { isCorrect: false };
 
-          const attempts = useGameStore.getState().wrongAttempts;
-          let restColor = '#4ade80'; // 1st try: Green
-          let restStroke = '#16a34a';
+        layer.on({
+          mouseover: () => {
+            if (phase === 'playing' && !isBlinking && !layer.options.stateInfo.isCorrect) {
+              layer.setStyle({ fillColor: '#c7d2fe', weight: 2.5, color: '#6366f1' });
+            }
+          },
+          mouseout: () => {
+            if (!layer.options.stateInfo.isCorrect && !layer.options.stateInfo.isBlinking) {
+              layer.setStyle({ fillColor: getColor(stateName), weight: 1, color: '#94a3b8' });
+            }
+          },
+          click: () => {
+            if (phase !== 'playing' || isBlinking || layer.options.stateInfo.isCorrect) return;
 
-          if (attempts === 1) {
-            restColor = '#fde047'; // 2nd try: Yellow
-            restStroke = '#ca8a04';
-          } else if (attempts >= 2) {
-            restColor = '#fb923c'; // 3rd try: Orange
-            restStroke = '#ea580c';
-          }
+            const result = answerState(stateName);
 
-          d3.select(this)
-            .classed('answered-correct', true)
-            .style('filter', 'url(#state-glow)');
+            if (result === 'correct') {
+              playSound('correct');
+              layer.options.stateInfo.isCorrect = true;
 
-          gsap.timeline()
-            .to(this, { fill: '#ffffff', duration: 0.15 })
-            .to(this, {
-              fill: restColor,
-              stroke: restStroke,
-              strokeWidth: 1.5,
-              duration: 0.4,
-              ease: 'bounce.out'
-            });
+              const attempts = useGameStore.getState().wrongAttempts;
+              let restColor = '#4ade80', restStroke = '#16a34a'; // Green 1st try
+              if (attempts === 1) { restColor = '#fde047'; restStroke = '#ca8a04'; } // Yellow 2nd
+              else if (attempts >= 2) { restColor = '#fb923c'; restStroke = '#ea580c'; } // Orange 3rd
 
-          // Reveal the label for this state after correct answer
-          svg.selectAll('text.state-label')
-            .each(function() {
-              if (d3.select(this).attr('data-nm') === stateName) {
-                d3.select(this)
-                  .style('display', 'block')
-                  .style('fill-opacity', '0')
-                  .transition().duration(500).delay(150)
-                  .style('fill-opacity', '1');
-              }
-            });
-
-          setTimeout(() => {
-            nextQuestion();
-          }, 900);
-
-        } else if (result === 'wrong') {
-          playSound('wrong');
-
-          gsap.timeline()
-            .to(this, { fill: '#fca5a5', stroke: '#ef4444', duration: 0.15 })
-            .to(this, { fill: '#fecaca', duration: 0.2 })
-            .to(this, { x: -4, duration: 0.05 })
-            .to(this, { x: 4, duration: 0.05 })
-            .to(this, { x: -3, duration: 0.05 })
-            .to(this, { x: 0, duration: 0.05 })
-            .to(this, {
-              fill: getColor(d.properties.ST_NM),
-              stroke: '#94a3b8',
-              strokeWidth: 0.7,
-              duration: 0.3,
-              onComplete: () => {
-                if (!d3.select(this).classed('answered-correct')) {
-                  d3.select(this).style('filter', 'none');
+              // Leaflet-friendly GSAP proxy animation
+              const colorProxy = { fill: '#ffffff', stroke: '#10b981', weight: 1.5 };
+              gsap.to(colorProxy, {
+                fill: restColor,
+                stroke: restStroke,
+                weight: 2,
+                duration: 0.4,
+                ease: 'bounce.out',
+                onUpdate: () => {
+                  layer.setStyle({ fillColor: colorProxy.fill, color: colorProxy.stroke, weight: colorProxy.weight });
                 }
+              });
+
+              // Apply Permanent Interactive Label Tooltip via Leaflet
+              layer.bindTooltip(formatStateLabel(stateName), { 
+                permanent: true, direction: 'center', className: 'custom-map-tooltip', offset: getStateOffset(stateName)
+              }).openTooltip();
+
+              setTimeout(() => { nextQuestion(); }, 900);
+
+            } else if (result === 'wrong') {
+              playSound('wrong');
+              
+              const colorProxy = { fill: '#fca5a5', stroke: '#ef4444' };
+              gsap.to(colorProxy, {
+                  fill: getColor(stateName), stroke: '#94a3b8', duration: 0.35, ease: 'power2.inOut',
+                  onUpdate: () => {
+                      layer.setStyle({ fillColor: colorProxy.fill, color: colorProxy.stroke });
+                  }
+              });
+
+              if (useGameStore.getState().wrongAttempts >= 3) {
+                const target = states[useGameStore.getState().currentIndex];
+                setBlinking(true, target.name);
               }
-            });
-
-          if (useGameStore.getState().wrongAttempts >= 3) {
-            const target = states[useGameStore.getState().currentIndex];
-            setBlinking(true, target.name);
+            }
           }
-        }
-      });
+        });
+      }
+    }).addTo(map);
 
-    // ── State Labels — HIDDEN (display:none) until correct answer ──────────
-    g.selectAll('text.state-label')
-      .data(geoData.features)
-      .enter()
-      .append('text')
-      .attr('class', 'pointer-events-none state-label')
-      .attr('data-nm', (d: any) => d.properties.ST_NM)
-      .attr('x', (d: any) => pathGenerator.centroid(d)[0])
-      .attr('y', (d: any) => pathGenerator.centroid(d)[1])
-      .attr('text-anchor', 'middle')
-      .attr('dy', '0.35em')
-      .style('font-family', 'Inter, sans-serif')
-      .style('font-weight', '700')
-      .style('font-size', '8px')
-      .style('fill', '#1e293b')
-      .style('pointer-events', 'none')
-      .style('display', 'none')   // completely hidden until answered
-      .text((d: any) => d.properties.ST_NM);
-
-    // ── Small UT Markers (Lakshadweep, Puducherry, Dadar-Nagar Haveli) ──
-    // gSmall is already created above and included in the main zoom handler
+    // C. Draw Small UT Markers Setup
     const SMALL_STATES = [
       { name: 'Lakshadweep', label: 'Lakshadweep', lon: 72.7, lat: 11.0 },
       { name: 'Puducherry', label: 'Puducherry', lon: 79.80, lat: 11.94 },
@@ -285,245 +232,189 @@ export default function Map() {
     ];
 
     SMALL_STATES.forEach(st => {
-      const proj = projection([st.lon, st.lat]);
-      if (!proj) return;
-      const [px, py] = proj;
+      const marker = L.circleMarker([st.lat, st.lon], {
+        radius: 5,
+        fillColor: '#e8edf5',
+        fillOpacity: 1,
+        color: '#6366f1',
+        weight: 1.5,
+      }).addTo(map);
+      
+      const stName = st.name;
+      if (!utLayerMap.current[stName]) utLayerMap.current[stName] = [];
+      utLayerMap.current[stName].push(marker);
 
-      // Dot marker for the actual state location
-      const marker = gSmall.append('g')
-        .attr('class', 'small-ut-marker cursor-pointer')
-        .attr('data-name', st.name)
-        .attr('transform', `translate(${px}, ${py})`);
+      (marker as any).options.stateInfo = { isCorrect: false };
 
-      // Pulsing ring
-      marker.append('circle')
-        .attr('r', 5)
-        .attr('fill', '#e8edf5')
-        .attr('stroke', '#6366f1')
-        .attr('stroke-width', 1.5)
-        .attr('class', 'ut-dot');
+      marker.on({
+          mouseover: () => { if (phase === 'playing' && !(marker as any).options.stateInfo.isCorrect) marker.setRadius(7).setStyle({ fillColor: '#c7d2fe' }); },
+          mouseout: () => { if (!(marker as any).options.stateInfo.isCorrect) marker.setRadius(5).setStyle({ fillColor: '#e8edf5' }); },
+          click: () => {
+             if (phase !== 'playing' || isBlinking || (marker as any).options.stateInfo.isCorrect) return;
+             const result = answerState(stName);
 
-      // Outer pulse ring
-      marker.append('circle')
-        .attr('r', 8)
-        .attr('fill', 'none')
-        .attr('stroke', '#6366f1')
-        .attr('stroke-width', 0.8)
-        .attr('opacity', 0.5);
+             const markersList = utLayerMap.current[stName];
 
-      // Click handler for small UT markers
-      marker.on('click', function() {
-        if (phase !== 'playing' || isBlinking) return;
-        const result = answerState(st.name);
+             if (result === 'correct') {
+                 playSound('correct');
+                 markersList.forEach(m => (m as any).options.stateInfo.isCorrect = true);
 
-        if (result === 'correct') {
-          playSound('correct');
-          const attempts = useGameStore.getState().wrongAttempts;
-          let color = '#4ade80';
-          if (attempts === 1) color = '#fde047';
-          else if (attempts >= 2) color = '#fb923c';
-          
-          const allUtDots = gSmall.selectAll(`.small-ut-marker[data-name="${st.name}"] .ut-dot`);
-          const allUtMarkers = gSmall.selectAll(`.small-ut-marker[data-name="${st.name}"]`);
-          
-          allUtMarkers.classed('ut-answered', true);
-          allUtDots
-            .attr('fill', color)
-            .attr('stroke', '#166534');
+                 const attempts = useGameStore.getState().wrongAttempts;
+                 let color = '#4ade80'; if (attempts === 1) color = '#fde047'; else if (attempts >= 2) color = '#fb923c';
 
-          // Reveal the UT label
-          gSmall.selectAll('.ut-label')
-            .each(function() {
-              if (d3.select(this).attr('data-ut-name') === st.name) {
-                d3.select(this)
-                  .style('display', 'block')
-                  .style('fill-opacity', '0')
-                  .transition().duration(400).delay(200)
-                  .style('fill-opacity', '1');
-              }
-            });
+                 markersList.forEach(m => {
+                    m.setStyle({ fillColor: color, color: '#166534', weight: 1.5 });
+                    m.setRadius(5); // reset size
+                 });
 
-          setTimeout(() => nextQuestion(), 900);
+                 // Bind UT title directly
+                 marker.bindTooltip(st.label, { permanent: true, direction: 'right', className: 'font-bold text-[7px] bg-transparent border-none text-indigo-700 shadow-none', offset: [5, 0] }).openTooltip();
 
-        } else if (result === 'wrong') {
-          playSound('wrong');
-          const allUtDots = gSmall.selectAll(`.small-ut-marker[data-name="${st.name}"] .ut-dot`);
-          allUtDots
-            .attr('fill', '#fca5a5')
-            .attr('stroke', '#ef4444');
-          setTimeout(() => {
-            allUtDots
-              .attr('fill', '#e8edf5')
-              .attr('stroke', '#6366f1');
-          }, 800);
+                 setTimeout(() => nextQuestion(), 900);
 
-          if (useGameStore.getState().wrongAttempts >= 3) {
-            const target = states[useGameStore.getState().currentIndex];
-            setBlinking(true, target.name);
+             } else if (result === 'wrong') {
+                 playSound('wrong');
+                 markersList.forEach(m => m.setStyle({ fillColor: '#fca5a5', color: '#ef4444' }));
+                 setTimeout(() => {
+                     markersList.forEach(m => {
+                         if (!(m as any).options.stateInfo.isCorrect) m.setStyle({ fillColor: '#e8edf5', color: '#6366f1' });
+                     });
+                 }, 800);
+
+                 if (useGameStore.getState().wrongAttempts >= 3) {
+                     setBlinking(true, states[useGameStore.getState().currentIndex].name);
+                 }
+             }
           }
-        }
-      })
-      .on('mouseover', function() {
-        if (phase === 'playing' && !marker.classed('ut-answered')) {
-          gSmall.selectAll(`.small-ut-marker[data-name="${st.name}"] .ut-dot`).attr('fill', '#c7d2fe').attr('r', 7);
-        }
-      })
-      .on('mouseout', function() {
-        if (!marker.classed('ut-answered')) {
-          gSmall.selectAll(`.small-ut-marker[data-name="${st.name}"] .ut-dot`).attr('fill', '#e8edf5').attr('r', 5);
-        } else {
-          // If answered, just reset size but keep color
-           gSmall.selectAll(`.small-ut-marker[data-name="${st.name}"] .ut-dot`).attr('r', 5);
-        }
       });
-
-      // UT label — HIDDEN (display:none) until answered correctly
-      gSmall.append('text')
-        .attr('class', 'ut-label')
-        .attr('data-ut-name', st.name)
-        .attr('x', px + 9)
-        .attr('y', py)
-        .attr('dy', '0.35em')
-        .style('font-size', '7px')
-        .style('font-family', 'Inter, sans-serif')
-        .style('font-weight', '700')
-        .style('fill', '#4f46e5')
-        .style('pointer-events', 'none')
-        .style('display', 'none')   // completely hidden until answered
-        .text(st.label);
     });
 
-  }, [geoData, neighbourData, containerSize]);
+  }, [geoData, neighbourData]);
 
-  // ── Blink Effect ─────────────────────────────────────
+  // 3. Automated Blinking Effect isolated interval logic
   useEffect(() => {
     if (isBlinking && highlightedState && phase === 'playing') {
-      const svg = d3.select(svgRef.current);
-      const allPaths = svg.selectAll('.state-path');
-      let targetElements: Element[] = [];
+      const stateLayer = stateLayerMap.current[highlightedState];
+      const utLayers = utLayerMap.current[highlightedState] || [];
+      
+      const targets = [stateLayer, ...utLayers].filter(Boolean);
+      
+      if (targets.length > 0) {
+        targets.forEach((t: any) => t.options.stateInfo.isBlinking = true);
 
-      // Check regular state paths first
-      allPaths.each(function(d: any) {
-        if (d.properties.ST_NM === highlightedState) {
-          targetElements.push(this as Element);
-        }
-      });
+        let blinkCycle = 0;
+        const intr = setInterval(() => {
+           targets.forEach(t => t.setStyle({
+              fillColor: blinkCycle % 2 === 0 ? '#60a5fa' : '#ef4444',
+              color: blinkCycle % 2 === 0 ? '#2563eb' : '#b91c1c',
+              weight: blinkCycle % 2 === 0 ? 3 : 2
+           }));
+           blinkCycle++;
+           
+           if (blinkCycle >= 14) {
+               clearInterval(intr);
+               // Final Correct Output State
+               targets.forEach((t: any) => {
+                   t.options.stateInfo.isBlinking = false;
+                   t.options.stateInfo.isCorrect = true;
+                   t.setStyle({ fillColor: '#ef4444', color: '#b91c1c', weight: 2 });
+                   
+                   // Drop label
+                   t.bindTooltip(formatStateLabel(highlightedState === "Delhi" ? "Delhi" : highlightedState), { 
+                     permanent: true, direction: 'center', className: 'custom-map-tooltip error-tooltip', offset: getStateOffset(highlightedState)
+                   }).openTooltip();
+               });
+               
+               setBlinking(false, null as any);
+               nextQuestion();
+           }
+        }, 200);
 
-      // If not found in regular paths, check small UT markers
-      if (targetElements.length === 0) {
-        svg.selectAll('.small-ut-marker').each(function() {
-          if (d3.select(this).attr('data-name') === highlightedState) {
-            targetElements.push((this as Element).querySelector('.ut-dot') as Element);
-          }
-        });
-      }
-
-      if (targetElements.length > 0) {
-        d3.selectAll(targetElements).classed('blinker', true);
-
-        gsap.to(targetElements, {
-          fill: '#60a5fa',
-          stroke: '#2563eb',
-          strokeWidth: 2,
-          duration: 0.25,
-          yoyo: true,
-          repeat: 7,
-          ease: 'sine.inOut',
-          onComplete: () => {
-            d3.selectAll(targetElements)
-              .classed('blinker', false)
-              .classed('answered-correct', true)
-              .classed('ut-answered', true)
-              .attr('fill', '#ef4444')
-              .attr('stroke', '#b91c1c')
-              .attr('stroke-width', 1.5);
-
-            // Also reveal the label for the missed state
-            d3.select(svgRef.current).selectAll('text.state-label')
-              .each(function() {
-                if (d3.select(this).attr('data-nm') === highlightedState) {
-                  d3.select(this)
-                    .style('display', 'block')
-                    .style('fill', '#991b1b')
-                    .style('fill-opacity', '0')
-                    .transition().duration(400)
-                    .style('fill-opacity', '1');
-                }
-              });
-
-            setBlinking(false, null as any);
-            nextQuestion();
-          }
-        });
+        return () => clearInterval(intr); // cleanup if interrupted
       } else {
-        setTimeout(() => {
-          setBlinking(false, null as any);
-          nextQuestion();
-        }, 1500);
+         // Failsafe exit
+         setTimeout(() => { setBlinking(false, null as any); nextQuestion(); }, 1500);
       }
     }
-  }, [isBlinking, highlightedState, nextQuestion, setBlinking, phase]);
+  }, [isBlinking, highlightedState, phase, nextQuestion, setBlinking]);
 
-  const handleZoomIn = () => {
-    if (svgRef.current && zoomRef.current) {
-      d3.select(svgRef.current).transition().duration(350).call(zoomRef.current.scaleBy as any, 1.6);
-    }
-  };
 
-  const handleZoomOut = () => {
-    if (svgRef.current && zoomRef.current) {
-      d3.select(svgRef.current).transition().duration(350).call(zoomRef.current.scaleBy as any, 0.625);
-    }
-  };
-
-  const handleReset = () => {
-    if (svgRef.current && zoomRef.current) {
-      d3.select(svgRef.current).transition().duration(500).call(zoomRef.current.transform as any, d3.zoomIdentity);
-    }
-  };
+  // 4. UI Control Buttons Setup
+  const handleZoomIn = () => mapRef.current?.zoomIn();
+  const handleZoomOut = () => mapRef.current?.zoomOut();
+  const handleReset = () => mapRef.current?.fitBounds(INDIA_BOUNDS, { padding: [20, 20] });
 
   return (
-    <div ref={containerRef} className="w-full h-[100dvh] flex justify-center items-center relative overflow-hidden">
-      <svg ref={svgRef} className="absolute inset-0 w-full h-full cursor-grab active:cursor-grabbing touch-none" />
+    <div className="w-full h-[100dvh] relative overflow-hidden leaflet-game-layer">
+      
+      {/* Global overrides for Leaflet tooltips to fix Seterra-like transparent texts */}
+      <style>{`
+        .leaflet-tooltip.custom-map-tooltip {
+          background-color: transparent !important;
+          border: none !important;
+          box-shadow: none !important;
+          padding: 0 !important;
+          font-weight: 800 !important;
+          font-size: 8px !important;
+          color: #1e293b !important;
+          text-shadow: 0px 0px 2px #ffffff, 0px 0px 3px #ffffff, 0px 0px 4px #ffffff !important;
+        }
+        .leaflet-tooltip.custom-map-tooltip.error-tooltip {
+          color: #7f1d1d !important;
+        }
+        /* Hide SVG pseudo shadow default leaflet adds */
+        .leaflet-tooltip-left::before, .leaflet-tooltip-right::before, .leaflet-tooltip-top::before, .leaflet-tooltip-bottom::before {
+          display: none !important;
+        }
+        /* Make leaflet container solid ocean blue to show a perfect base */
+        .leaflet-container {
+          background-color: #a6d0ed !important;
+        }
+      `}</style>
+      
+      {/* Base interactive map container */}
+      <div ref={containerRef} className="absolute inset-0 w-full h-full z-0 leaflet-game-container"></div>
 
-      {/* Zoom Controls */}
-      <div className="absolute bottom-[5.5rem] md:bottom-8 right-3 md:right-6 flex flex-col gap-1.5 md:gap-2 z-10 pointer-events-auto">
+      {/* ── Footer Branding ── */}
+      <a href="https://knobly.in" target="_blank" rel="noopener noreferrer" 
+        className="hidden sm:flex absolute bottom-5 left-1/2 -translate-x-1/2 z-20 pointer-events-auto text-slate-500 hover:text-slate-800 transition-colors text-xs font-semibold items-center gap-1">
+        Powered by <span className="text-slate-700 font-bold">Knobly</span>
+      </a>
+
+      {/* Zoom Controls Overlay */}
+      <div className="absolute bottom-[5.5rem] md:bottom-8 right-3 md:right-6 flex flex-col gap-1.5 md:gap-2 z-20 pointer-events-auto">
         <button onClick={handleZoomIn} title="Zoom In"
-          className="w-8 h-8 md:w-11 md:h-11 bg-slate-800/90 backdrop-blur-md rounded-lg md:rounded-xl flex items-center justify-center text-slate-200 text-base md:text-xl font-bold shadow-lg border border-white/10 hover:bg-indigo-700/80 active:scale-95 transition-all">
+          className="w-8 h-8 md:w-11 md:h-11 bg-white/90 backdrop-blur-md rounded-lg md:rounded-xl flex items-center justify-center text-slate-700 text-base md:text-xl font-bold shadow-md border border-slate-200 hover:bg-slate-50 active:scale-95 transition-all">
           +
         </button>
         <button onClick={handleZoomOut} title="Zoom Out"
-          className="w-8 h-8 md:w-11 md:h-11 bg-slate-800/90 backdrop-blur-md rounded-lg md:rounded-xl flex items-center justify-center text-slate-200 text-base md:text-xl font-bold shadow-lg border border-white/10 hover:bg-indigo-700/80 active:scale-95 transition-all">
+          className="w-8 h-8 md:w-11 md:h-11 bg-white/90 backdrop-blur-md rounded-lg md:rounded-xl flex items-center justify-center text-slate-700 text-base md:text-xl font-bold shadow-md border border-slate-200 hover:bg-slate-50 active:scale-95 transition-all">
           −
         </button>
         <button onClick={handleReset} title="Reset View"
-          className="w-8 h-8 md:w-11 md:h-11 bg-slate-800/90 backdrop-blur-md rounded-lg md:rounded-xl flex items-center justify-center text-slate-400 text-xs md:text-base shadow-lg border border-white/10 hover:bg-slate-700 active:scale-95 transition-all">
+          className="w-8 h-8 md:w-11 md:h-11 bg-white/90 backdrop-blur-md rounded-lg md:rounded-xl flex items-center justify-center text-slate-500 text-xs md:text-base shadow-md border border-slate-200 hover:bg-slate-50 active:scale-95 transition-all">
           ⊙
         </button>
       </div>
 
-      {/* Legend — desktop full, mobile compact pill */}
-      <div className="hidden sm:flex absolute bottom-8 left-4 md:left-6 z-10 pointer-events-none flex-col gap-1.5 bg-slate-900/60 backdrop-blur-md rounded-xl px-3 py-2.5 border border-white/8 shadow-lg">
-        <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-0.5">Legend</span>
+      {/* Legends Overlay */}
+      <div className="hidden sm:flex absolute bottom-8 left-4 md:left-6 z-20 pointer-events-none flex-col gap-1.5 bg-white/90 backdrop-blur-md rounded-xl px-3 py-2.5 border border-slate-200 shadow-md">
+        <span className="text-[9px] font-bold text-slate-500 uppercase tracking-widest mb-0.5">Legend</span>
         {[{ color: '#4ade80', label: '1st try' }, { color: '#fde047', label: '2nd try' },
           { color: '#fb923c', label: '3rd try' }, { color: '#ef4444', label: 'Missed' }]
           .map(item => (
             <div key={item.label} className="flex items-center gap-2">
-              <div className="w-3 h-3 rounded-sm" style={{ background: item.color }} />
-              <span className="text-[9px] text-slate-400">{item.label}</span>
+              <div className="w-3 h-3 rounded-sm border border-slate-100" style={{ background: item.color }} />
+              <span className="text-[9px] font-semibold text-slate-600">{item.label}</span>
             </div>
           ))}
       </div>
-      <div className="sm:hidden absolute bottom-[5.5rem] left-3 z-10 pointer-events-none flex items-center gap-1 bg-slate-900/75 backdrop-blur-md rounded-full px-2 py-1 border border-white/10 shadow">
-        {['#4ade80','#fde047','#fb923c','#ef4444'].map((c,i)=><div key={i} className="w-2 h-2 rounded-full" style={{background:c}}/>)}
-        <span className="text-[7px] text-slate-400 font-semibold ml-0.5">×try</span>
-      </div>
 
-      {/* Powered by — desktop only */}
-      <a href="https://knoblyweb.in" target="_blank" rel="noopener noreferrer"
-        className="hidden sm:flex absolute bottom-5 left-1/2 -translate-x-1/2 z-10 pointer-events-auto text-slate-300 hover:text-white transition-colors text-xs font-semibold items-center gap-1">
-        Powered by <span className="text-slate-100 font-bold">Knobly</span>
-      </a>
+      <div className="sm:hidden absolute bottom-[5.5rem] left-3 z-20 pointer-events-none flex items-center gap-1 bg-white/90 backdrop-blur-md rounded-full px-2 py-1 border border-slate-200 shadow-sm">
+        {['#4ade80','#fde047','#fb923c','#ef4444'].map((c,i)=><div key={i} className="w-2 h-2 rounded-full border border-slate-50" style={{background:c}}/>)}
+        <span className="text-[7px] text-slate-500 font-bold ml-0.5">×try</span>
+      </div>
+      
     </div>
   );
 }

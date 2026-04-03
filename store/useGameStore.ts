@@ -67,15 +67,19 @@ export const useGameStore = create<GameState>((set, get) => ({
       gameMode: mode,
       isBlinking: false,
       highlightedState: null,
-      startTime: Date.now(),
+      startTime: null,
       isGuest,
       totalWrongAttempts: 0,
     });
   },
 
   answerState: (clickedName: string) => {
-    const { states, currentIndex, wrongAttempts, isBlinking } = get();
+    const { states, currentIndex, wrongAttempts, isBlinking, startTime } = get();
     if (isBlinking || currentIndex >= states.length) return 'ignored';
+
+    if (!startTime) {
+      set({ startTime: Date.now() });
+    }
 
     const targetState = states[currentIndex];
     // Map answer check: we still click on the state based on its "name".
