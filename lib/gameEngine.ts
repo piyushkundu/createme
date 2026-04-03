@@ -1,4 +1,4 @@
-import { collection, addDoc, getDocs, query, orderBy, limit, doc, getDoc, setDoc, deleteDoc } from "firebase/firestore";
+import { collection, addDoc, getDocs, query, orderBy, limit, doc, getDoc, setDoc, deleteDoc, where } from "firebase/firestore";
 import { db } from "./firebase";
 
 export interface LeaderboardEntry {
@@ -96,6 +96,22 @@ export const getAllUsers = async () => {
 export const deleteUser = async (username: string) => {
   try {
     await deleteDoc(doc(db, 'users', username.toLowerCase()));
+
+    // Cascade delete user's records from all leaderboards
+    const collections = ['leaderboard', 'leaderboard_uts', 'leaderboard_capitals'];
+    
+    for (const colName of collections) {
+      const q = query(collection(db, colName), where("name", "==", username));
+      const querySnapshot = await getDocs(q);
+      
+      const deletePromises: any[] = [];
+      querySnapshot.forEach((docSnap) => {
+        deletePromises.push(deleteDoc(doc(db, colName, docSnap.id)));
+      });
+      
+      await Promise.all(deletePromises);
+    }
+
     return true;
   } catch (error) {
     console.error("Error deleting user: ", error);
