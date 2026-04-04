@@ -16,6 +16,18 @@ const Map = dynamic(() => import('../../components/Map'), {
     </div>
   ) 
 });
+
+const AsiaMap = dynamic(() => import('../../components/AsiaMap'), { 
+  ssr: false, 
+  loading: () => (
+    <div className="absolute inset-0 flex items-center justify-center">
+      <div className="flex flex-col items-center gap-3">
+         <div className="w-10 h-10 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin"></div>
+         <p className="text-emerald-700 font-bold text-sm tracking-widest uppercase animate-pulse">Loading Asia Map Engine...</p>
+      </div>
+    </div>
+  ) 
+});
 import GameUI from '../../components/GameUI';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -41,7 +53,7 @@ export default function GamePage() {
       
       {/* Map container: fills entire screen */}
       <div className="absolute inset-0 z-0">
-        <Map />
+        {(gameMode === 'asia_countries' || gameMode === 'asia_capitals') ? <AsiaMap /> : <Map />}
       </div>
 
       {/* GAME OVER MODAL */}

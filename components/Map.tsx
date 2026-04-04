@@ -6,6 +6,7 @@ import 'leaflet/dist/leaflet.css';
 import { gsap } from 'gsap';
 import { useGameStore } from '../store/useGameStore';
 import { playSound } from '../lib/sound';
+import statesData from '../data/states.json';
 
 const INDIA_BOUNDS: L.LatLngBoundsExpression = [
   [6.5, 68],
@@ -201,6 +202,22 @@ export default function Map() {
             } else if (result === 'wrong') {
               playSound('wrong');
               
+              // NEW LOGIC: Temporary Tooltip
+              const mode = useGameStore.getState().gameMode;
+              const stateInfo = statesData.find((s: any) => s.name === stateName);
+              const wrongLabel = mode === 'capitals' && stateInfo?.capital ? stateInfo.capital : stateName;
+              
+              layer.bindTooltip(`<div class="text-center leading-[1.05] tracking-tight text-rose-600 font-bold">${wrongLabel}</div>`, {
+                 permanent: true, direction: 'center', className: 'custom-map-tooltip', offset: getStateOffset(stateName)
+              }).openTooltip();
+
+              setTimeout(() => {
+                 if (!layer.options.stateInfo.isCorrect) {
+                     layer.closeTooltip();
+                     layer.unbindTooltip();
+                 }
+              }, 1000);
+              
               const colorProxy = { fill: '#fca5a5', stroke: '#ef4444' };
               gsap.to(colorProxy, {
                   fill: getColor(stateName), stroke: '#94a3b8', duration: 0.35, ease: 'power2.inOut',
@@ -274,6 +291,22 @@ export default function Map() {
 
              } else if (result === 'wrong') {
                  playSound('wrong');
+
+                 const mode = useGameStore.getState().gameMode;
+                 const stateInfo = statesData.find((s: any) => s.name === stName);
+                 const wrongLabel = mode === 'capitals' && stateInfo?.capital ? stateInfo.capital : st.label;
+
+                 marker.bindTooltip(`<div class="text-center leading-[1.05] tracking-tight text-rose-600 font-bold">${wrongLabel}</div>`, {
+                    permanent: true, direction: 'right', className: 'font-bold text-[7px] bg-transparent border-none text-rose-700 shadow-none', offset: [5, 0]
+                 }).openTooltip();
+
+                 setTimeout(() => {
+                    if (!(marker as any).options.stateInfo.isCorrect) {
+                        marker.closeTooltip();
+                        marker.unbindTooltip();
+                    }
+                 }, 1000);
+
                  markersList.forEach(m => m.setStyle({ fillColor: '#fca5a5', color: '#ef4444' }));
                  setTimeout(() => {
                      markersList.forEach(m => {

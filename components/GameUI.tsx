@@ -35,8 +35,8 @@ export default function GameUI() {
         className="fixed top-0 left-0 z-50 pointer-events-none hidden md:block bg-white text-slate-800 px-3 py-1.5 rounded shadow-md border border-slate-200 whitespace-nowrap text-sm font-bold"
         style={{ transform: 'translate(-100px, -100px)' }}
       >
-        {gameMode === 'capitals'
-          ? `State with capital: ${targetState?.capital}`
+        {gameMode === 'capitals' || gameMode === 'asia_capitals'
+          ? `Locate capital: ${targetState?.capital}`
           : `Click on ${targetState?.name}`}
       </div>
 
@@ -119,10 +119,13 @@ export default function GameUI() {
             <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/10 to-cyan-500/5 rounded-2xl blur-xl" />
             <div className="relative bg-white/95 backdrop-blur-xl px-7 py-5 rounded-2xl shadow-[0_15px_40px_rgba(0,0,0,0.1)] border border-slate-200 flex flex-col items-center gap-1 min-w-[175px]">
               <span className="text-[9px] font-extrabold text-indigo-600 uppercase tracking-[0.2em] text-center w-full block">
-                {gameMode === 'states' ? 'Find this state' : gameMode === 'uts' ? 'Find this UT' : 'Locate state with capital'}
+                {gameMode === 'states' ? 'Find this state' : 
+                 gameMode === 'uts' ? 'Find this UT' : 
+                 gameMode === 'asia_countries' ? 'Find this country' : 
+                 'Locate capital'}
               </span>
               <h2 className="text-xl md:text-2xl font-black text-slate-800 text-center leading-tight drop-shadow-sm">
-                {gameMode === 'capitals' ? targetState?.capital : targetState?.name}
+                {gameMode === 'capitals' || gameMode === 'asia_capitals' ? targetState?.capital : targetState?.name}
               </h2>
               {wrongAttempts > 0 && (
                 <motion.div
@@ -157,10 +160,13 @@ export default function GameUI() {
               <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/15 to-cyan-500/10 rounded-2xl blur-md" />
               <div className="relative bg-white/95 backdrop-blur-xl rounded-2xl border border-slate-200 shadow-[0_8px_32px_rgba(0,0,0,0.1)] px-4 py-2.5 flex flex-col items-center gap-0.5">
                 <span className="text-[8px] font-extrabold text-indigo-600 uppercase tracking-[0.18em]">
-                  {gameMode === 'states' ? 'Find this state' : gameMode === 'uts' ? 'Find this UT' : 'State with capital'}
+                  {gameMode === 'states' ? 'Find this state' : 
+                   gameMode === 'uts' ? 'Find this UT' : 
+                   gameMode === 'asia_countries' ? 'Find this country' : 
+                   'Locate capital'}
                 </span>
                 <h2 className="text-base font-black text-slate-800 leading-tight">
-                  {gameMode === 'capitals' ? targetState?.capital : targetState?.name}
+                  {gameMode === 'capitals' || gameMode === 'asia_capitals' ? targetState?.capital : targetState?.name}
                 </h2>
                 {wrongAttempts > 0 && (
                   <span className={`text-[8px] font-bold px-1.5 py-0.5 rounded-full mt-0.5 border ${

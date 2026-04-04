@@ -173,14 +173,14 @@ export default function Home() {
                className="bg-white/90 backdrop-blur-xl rounded-[2rem] border border-white shadow-xl p-4 sm:p-5 shrink-0"
             >
               <div className="flex items-center justify-between mb-4">
-                <h2 className="text-sm uppercase font-extrabold text-slate-800 tracking-widest ml-2">Select Map Engine</h2>
+                <h2 className="text-sm uppercase font-extrabold text-slate-800 tracking-widest ml-2">India Map Challenge</h2>
                 <span className="flex h-3 w-3 relative">
                   <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
                   <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span>
                 </span>
               </div>
               
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 mb-6">
                 <button
                   onClick={() => handleStart('states')}
                   className="w-full p-4 rounded-xl bg-gradient-to-b from-slate-50 to-slate-100 hover:from-white hover:to-emerald-50 border border-slate-200 hover:border-emerald-300 text-slate-700 shadow-sm hover:shadow-md transition-all flex flex-col items-center justify-center gap-1.5 group relative overflow-hidden"
@@ -204,6 +204,30 @@ export default function Home() {
                   <span className="text-3xl drop-shadow-sm group-hover:scale-110 transition-transform">🏛️</span>
                   <span className="font-extrabold text-[13px] tracking-tight group-hover:text-purple-700 transition-colors">Find Capitals</span>
                   <span className="text-[10px] font-bold text-slate-400 group-hover:text-purple-600/70 transition-colors">Pinpoint 36 cities</span>
+                </button>
+              </div>
+
+              <div className="flex items-center justify-between mb-4 mt-6 border-t border-slate-100 pt-6">
+                <h2 className="text-sm uppercase font-extrabold text-slate-800 tracking-widest ml-2">Asia Map Challenge</h2>
+                <span className="flex h-3 w-3 relative"></span>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <button
+                  onClick={() => handleStart('asia_countries')}
+                  className="w-full p-4 rounded-xl bg-gradient-to-b from-slate-50 to-slate-100 hover:from-white hover:to-amber-50 border border-slate-200 hover:border-amber-300 text-slate-700 shadow-sm hover:shadow-md transition-all flex flex-col items-center justify-center gap-1.5 group relative overflow-hidden"
+                >
+                  <span className="text-3xl drop-shadow-sm group-hover:scale-110 transition-transform">🌏</span>
+                  <span className="font-extrabold text-[13px] tracking-tight group-hover:text-amber-700 transition-colors">Find Countries</span>
+                  <span className="text-[10px] font-bold text-slate-400 group-hover:text-amber-600/70 transition-colors">Locate 49 countries</span>
+                </button>
+                <button
+                  onClick={() => handleStart('asia_capitals')}
+                  className="w-full p-4 rounded-xl bg-gradient-to-b from-slate-50 to-slate-100 hover:from-white hover:to-pink-50 border border-slate-200 hover:border-pink-300 text-slate-700 shadow-sm hover:shadow-md transition-all flex flex-col items-center justify-center gap-1.5 group relative overflow-hidden"
+                >
+                  <span className="text-3xl drop-shadow-sm group-hover:scale-110 transition-transform">🏙️</span>
+                  <span className="font-extrabold text-[13px] tracking-tight group-hover:text-pink-700 transition-colors">Find Capitals</span>
+                  <span className="text-[10px] font-bold text-slate-400 group-hover:text-pink-600/70 transition-colors">Pinpoint 49 cities</span>
                 </button>
               </div>
             </motion.div>

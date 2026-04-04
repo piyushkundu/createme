@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import statesData from '../data/states.json';
+import asiaCountriesData from '../data/asiaCountries.json';
 import { shuffleArray, saveResult } from '../lib/gameEngine';
 
 export interface StateData {
@@ -9,7 +10,7 @@ export interface StateData {
   capital: string;
 }
 
-export type GameMode = 'states' | 'uts' | 'capitals';
+export type GameMode = 'states' | 'uts' | 'capitals' | 'asia_countries' | 'asia_capitals';
 
 interface GameState {
   states: StateData[];
@@ -53,8 +54,9 @@ export const useGameStore = create<GameState>((set, get) => ({
     } else if (mode === 'uts') {
       filteredStates = statesData.filter(s => s.type === 'ut');
     } else if (mode === 'capitals') {
-      // For capitals, we'll use all states and UTs, but the prompt will ask for capitals
       filteredStates = statesData; 
+    } else if (mode === 'asia_countries' || mode === 'asia_capitals') {
+      filteredStates = asiaCountriesData as StateData[];
     }
 
     set({
